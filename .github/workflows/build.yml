@@ -1,0 +1,82 @@
+# Builds Luna for macOS and Linux. The Windows build and the update signatures are made on
+# the maintainer's machine by scripts/release.mjs, so the signing key never leaves it.
+name: Build macOS and Linux
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["ci/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos
+            os: macos-latest
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            args: --target universal-apple-darwin --bundles app,dmg
+            bundle: src-tauri/target/universal-apple-darwin/release/bundle
+          - name: linux
+            os: ubuntu-22.04
+            rust_targets: ""
+            args: --bundles appimage,deb
+            bundle: src-tauri/target/release/bundle
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Linux packages
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev \
+            libxdo-dev libssl-dev libx11-dev libxrandr-dev patchelf file pkg-config build-essential
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Unit tests
+        working-directory: src-tauri
+        run: cargo test --lib
+
+      - name: Build
+        run: npx tauri build ${{ matrix.args }} --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      - name: Collect
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          version=$(node -p "require('./package.json').version")
+          if [ "${{ matrix.name }}" = macos ]; then
+            tar -czf "out/Luna_${version}_universal.app.tar.gz" -C "${{ matrix.bundle }}/macos" Luna.app
+            cp "${{ matrix.bundle }}"/dmg/*.dmg out/
+          else
+            cp "${{ matrix.bundle }}"/appimage/*.AppImage out/
+            cp "${{ matrix.bundle }}"/deb/*.deb out/
+          fi
+          ls -l out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luna-${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error

@@ -1,8 +1,8 @@
 //! Monitor list and per-monitor gamma ramps (GDI).
 
-use crate::gamma::{self, Ramp};
+use crate::gamma::Ramp;
+use crate::screens;
 use crate::vibrance::Vendor;
-use serde::Serialize;
 use windows::core::{BOOL, PCWSTR};
 use windows::Win32::Foundation::{LPARAM, POINT, RECT};
 use windows::Win32::Graphics::Gdi::{
@@ -13,41 +13,7 @@ use windows::Win32::UI::ColorSystem::{GetDeviceGammaRamp, SetDeviceGammaRamp};
 
 const MONITORINFOF_PRIMARY: u32 = 1;
 
-#[derive(Clone, Debug, Serialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct MonitorInfo {
-    /// GDI device name such as `\\.\DISPLAY1`.
-    pub id: String,
-    pub label: String,
-    pub x: i32,
-    pub y: i32,
-    pub width: i32,
-    pub height: i32,
-    pub primary: bool,
-    /// The graphics card driving this monitor, e.g. "AMD Radeon RX 7800 XT".
-    pub gpu: String,
-    /// "nvidia", "amd", "intel" or "generic".
-    pub vendor: Vendor,
-    /// What gives this monitor its vibrance, e.g. "AMD saturation" or "Color matrix".
-    pub vibrance: String,
-}
-
-pub const MATRIX_VIBRANCE: &str = "Color matrix";
-
-impl MonitorInfo {
-    /// Same place and size: GPU details are filled in later and do not count.
-    pub fn same_layout(a: &[MonitorInfo], b: &[MonitorInfo]) -> bool {
-        a.len() == b.len()
-            && a.iter().zip(b).all(|(x, y)| {
-                x.id == y.id
-                    && x.x == y.x
-                    && x.y == y.y
-                    && x.width == y.width
-                    && x.height == y.height
-                    && x.primary == y.primary
-            })
-    }
-}
+pub use crate::screens::{MonitorInfo, MATRIX_VIBRANCE};
 
 fn wide(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
@@ -95,7 +61,7 @@ pub fn enumerate() -> Vec<MonitorInfo> {
     unsafe {
         let _ = EnumDisplayMonitors(None, None, Some(enum_proc), LPARAM(&mut list as *mut _ as isize));
     }
-    list.sort_by_key(|m| (!m.primary, m.x, m.y));
+    screens::sort(&mut list);
     list
 }
 
@@ -143,29 +109,7 @@ pub fn set_ramp(device: &str, ramp: &Ramp) -> bool {
     unsafe { SetDeviceGammaRamp(dc.0, ramp.as_ptr() as *const core::ffi::c_void).as_bool() }
 }
 
-/// Sets `target`; if Windows refuses it (it limits how far a ramp may stray from
-/// identity unless the machine-wide gamma range was unlocked), finds the strongest
-/// mix between `base` and `target` that Windows accepts.
-/// Returns the fraction of the effect that was applied (0..1), or None on failure.
+/// Sets `target`, or the strongest part of it that Windows accepts (see `screens::best_effort`).
 pub fn set_ramp_best_effort(device: &str, base: &Ramp, target: &Ramp) -> Option<f64> {
-    if set_ramp(device, target) {
-        return Some(1.0);
-    }
-    let (mut lo, mut hi) = (0.0f64, 1.0f64);
-    let mut best: Option<f64> = None;
-    for _ in 0..7 {
-        let mid = (lo + hi) / 2.0;
-        let r = gamma::blend_ramp(base, target, mid);
-        if set_ramp(device, &r) {
-            best = Some(mid);
-            lo = mid;
-        } else {
-            hi = mid;
-        }
-    }
-    if let Some(t) = best {
-        // Leave the last accepted mix in place.
-        let _ = set_ramp(device, &gamma::blend_ramp(base, target, t));
-    }
-    best
+    screens::best_effort(|r| set_ramp(device, r), base, target)
 }

@@ -62,7 +62,7 @@ const GENERAL: { id: Page; label: string; icon: string }[] = [
 ];
 
 export function Sidebar({ page, onPage }: { page: Page; onPage: (p: Page) => void }) {
-  const { settings, monitors, update } = useStore();
+  const { settings, monitors, update, info } = useStore();
   const mon = monitors.find((m) => m.id === settings.selectedMonitor) ?? monitors[0];
   const gammaId = mon ? settings.activeGamma[mon.id] : "";
   const gamma = settings.gammaPresets.find((p) => p.id === gammaId);
@@ -81,7 +81,7 @@ export function Sidebar({ page, onPage }: { page: Page; onPage: (p: Page) => voi
       <nav className="nav-groups" aria-label="Sections">
         <div className="nav-group">
           <div className="nav-title">Menu</div>
-          {MENU.map(item)}
+          {MENU.filter((m) => m.id !== "optimizer" || info.optimizer).map(item)}
         </div>
         <div className="nav-group">
           <div className="nav-title">General</div>

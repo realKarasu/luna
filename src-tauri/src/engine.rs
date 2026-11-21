@@ -1,6 +1,7 @@
-//! The engine owns the live state and pushes it to Windows: gamma ramps per
+//! The engine owns the live state and pushes it to the system: gamma ramps per
 //! monitor, the full-screen colour matrix, driver vibrance (NVIDIA or AMD, per
-//! monitor), Ultra Zoom and the overlay windows. It also reacts to the input
+//! monitor), Ultra Zoom and the overlay windows. What a platform cannot do
+//! (the colour matrix and zoom outside Windows) is a no-op in its module. It also reacts to the input
 //! hooks and to display changes.
 //!
 //! Locking rule: code holding the engine lock never waits on the UI thread
@@ -9,17 +10,17 @@
 use crate::color::{self, ColorParams, Holo};
 use crate::gamma::{self, Ramp, Tone};
 use crate::settings::{self, Settings};
-use crate::win::display::{self, MonitorInfo};
-use crate::win::hooks::{self, HookEvent};
-use crate::vibrance::{self, Vendor, VibranceBackend};
-use crate::win::adl::AdlLib;
-use crate::win::nvapi::NvLib;
-use crate::win::{gpu, mag, window};
+use crate::input::HookEvent;
+use crate::plat::display::{self, MonitorInfo};
+use crate::plat::vib::Drivers;
+use crate::plat::window::{self, Overlay};
+use crate::plat::{hooks, mag};
+use crate::vibrance::{self, VibranceBackend};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, TryLockError};
+use std::sync::{Mutex, MutexGuard, OnceLock, TryLockError};
 use tauri::{AppHandle, Emitter};
 
 pub const CROSSHAIR_SIZE: i32 = 256;
@@ -163,8 +164,7 @@ pub struct Engine {
     originals: HashMap<String, Ramp>,
     applied: HashMap<String, Ramp>,
     pub gamma_strength: HashMap<String, f64>,
-    nv_lib: Option<NvLib>,
-    adl_lib: Option<Arc<AdlLib>>,
+    drivers: Drivers,
     /// Driver vibrance per monitor id; monitors without one use the matrix.
     vib: HashMap<String, VibSlot>,
     /// First driver level seen per monitor id: what quit, reset and crash recovery put back.
@@ -175,8 +175,8 @@ pub struct Engine {
     pub recording: bool,
     app: AppHandle,
     ui: Sender<UiMsg>,
-    crosshair_hwnd: isize,
-    wheel_hwnd: isize,
+    crosshair_win: Option<Overlay>,
+    wheel_win: Option<Overlay>,
     dirty: bool,
     shut_down: bool,
     ticks: u64,
@@ -212,8 +212,7 @@ impl Engine {
             originals,
             applied: HashMap::new(),
             gamma_strength: HashMap::new(),
-            nv_lib: None,
-            adl_lib: None,
+            drivers: Drivers::new(),
             vib: HashMap::new(),
             vib_originals: HashMap::new(),
             nvg_held: false,
@@ -222,8 +221,8 @@ impl Engine {
             recording: false,
             app,
             ui,
-            crosshair_hwnd: 0,
-            wheel_hwnd: 0,
+            crosshair_win: None,
+            wheel_win: None,
             dirty: false,
             shut_down: false,
             ticks: 0,
@@ -255,83 +254,16 @@ impl Engine {
         let _ = settings::write_json_atomic(&restore_path(), &f);
     }
 
-    /// Finds the graphics card behind each monitor (DXGI) and picks its vibrance
-    /// backend: NVAPI on NVIDIA, ADL on AMD, the colour matrix otherwise or when
-    /// a driver library is missing or refuses. `reload` starts ADL afresh, as
-    /// its adapter list can change when screens come and go.
+    /// Finds the graphics card behind each monitor and picks its vibrance backend
+    /// (NVAPI or ADL on Windows, nvidia-settings on Linux), the colour matrix
+    /// otherwise or when a driver is missing or refuses. `reload` starts the
+    /// driver libraries afresh after a display change.
     fn detect_vibrance(&mut self, reload: bool) {
         self.vib.clear();
-        if reload {
-            self.adl_lib = None;
-        }
-        let gpus = gpu::detect();
         for m in self.monitors.iter_mut() {
-            match gpus.get(&gpu::key(&m.id)) {
-                Some(g) => {
-                    m.gpu = g.name.clone();
-                    m.vendor = g.vendor;
-                }
-                None => {
-                    m.gpu = String::new();
-                    m.vendor = Vendor::Generic;
-                }
-            }
             m.vibrance = display::MATRIX_VIBRANCE.to_string();
         }
-        // When DXGI tells nothing, a driver that names the monitor is trusted.
-        let wants = |m: &MonitorInfo, v: Vendor| gpus.is_empty() || m.vendor == v;
-        let any = |v: Vendor| gpus.is_empty() || self.monitors.iter().any(|m| m.vendor == v);
-        let mut found: HashMap<String, Box<dyn VibranceBackend>> = HashMap::new();
-
-        if any(Vendor::Nvidia) {
-            if self.nv_lib.is_none() {
-                self.nv_lib = NvLib::load();
-            }
-            if let Some(nv) = &self.nv_lib {
-                let mut unnamed = Vec::new();
-                for (name, d) in nv.displays() {
-                    let target = name.and_then(|n| {
-                        self.monitors.iter().find(|m| m.id.eq_ignore_ascii_case(&n) && wants(m, Vendor::Nvidia))
-                    });
-                    match target {
-                        Some(m) if !found.contains_key(&m.id) => {
-                            found.insert(m.id.clone(), Box::new(d));
-                        }
-                        Some(_) => {}
-                        None => unnamed.push(d),
-                    }
-                }
-                // Older drivers do not name their displays: hand them out in order.
-                let mut rest = unnamed.into_iter();
-                for m in self.monitors.iter().filter(|m| m.vendor == Vendor::Nvidia) {
-                    if found.contains_key(&m.id) {
-                        continue;
-                    }
-                    match rest.next() {
-                        Some(d) => {
-                            found.insert(m.id.clone(), Box::new(d));
-                        }
-                        None => break,
-                    }
-                }
-            }
-        }
-
-        if any(Vendor::Amd) {
-            if self.adl_lib.is_none() {
-                self.adl_lib = AdlLib::load();
-            }
-            if let Some(lib) = &self.adl_lib {
-                for (device, d) in AdlLib::displays(lib) {
-                    if let Some(m) =
-                        self.monitors.iter().find(|m| m.id.eq_ignore_ascii_case(&device) && wants(m, Vendor::Amd))
-                    {
-                        found.entry(m.id.clone()).or_insert_with(|| Box::new(d));
-                    }
-                }
-            }
-        }
-
+        let found = self.drivers.find(&mut self.monitors, reload);
         for (id, mut backend) in found {
             match self.vib_originals.get(&id) {
                 Some(o) => backend.set_original(*o),
@@ -343,8 +275,7 @@ impl Engine {
             self.vib.insert(id, VibSlot { backend, last });
         }
         if self.vib.is_empty() {
-            // Nothing uses AMD's context any more.
-            self.adl_lib = None;
+            self.drivers.release();
         }
 
         // A shared matrix: when one screen has no driver vibrance, the matrix
@@ -395,9 +326,9 @@ impl Engine {
         let _ = self.app.emit("monitors-changed", &self.monitors);
     }
 
-    pub fn set_overlay_windows(&mut self, crosshair: isize, wheel: isize) {
-        self.crosshair_hwnd = crosshair;
-        self.wheel_hwnd = wheel;
+    pub fn set_overlay_windows(&mut self, crosshair: Option<Overlay>, wheel: Option<Overlay>) {
+        self.crosshair_win = crosshair;
+        self.wheel_win = wheel;
         self.apply_crosshair();
     }
 
@@ -506,18 +437,16 @@ impl Engine {
     }
 
     fn apply_crosshair(&self) {
-        if self.crosshair_hwnd == 0 {
-            return;
-        }
+        let Some(win) = &self.crosshair_win else { return };
         let c = &self.settings.crosshair;
         match self.monitor_or_primary(&c.monitor) {
             Some(m) if c.enabled => {
                 let cx = m.x + m.width / 2;
                 let cy = m.y + m.height / 2;
                 let half = CROSSHAIR_SIZE / 2;
-                window::place(self.crosshair_hwnd, cx - half, cy - half, CROSSHAIR_SIZE, CROSSHAIR_SIZE, true);
+                win.place(cx - half, cy - half, CROSSHAIR_SIZE, CROSSHAIR_SIZE, true);
             }
-            _ => window::place(self.crosshair_hwnd, 0, 0, 0, 0, false),
+            _ => win.place(0, 0, 0, 0, false),
         }
         let _ = self.app.emit_to("crosshair", "crosshair", &c.current);
     }
@@ -714,18 +643,16 @@ impl Engine {
 
     fn open_wheel(&mut self) {
         let items = self.wheel_items();
-        if items.is_empty() || self.wheel_hwnd == 0 {
+        let Some(win) = &self.wheel_win else { return };
+        if items.is_empty() {
             return;
         }
-        let mut pt = windows::Win32::Foundation::POINT::default();
-        unsafe {
-            let _ = windows::Win32::UI::WindowsAndMessaging::GetCursorPos(&mut pt);
-        }
-        if let Some(m) = display::monitor_at(pt.x, pt.y) {
+        let (x, y) = window::cursor_pos();
+        if let Some(m) = display::monitor_at(x, y) {
             let half = WHEEL_SIZE / 2;
             let cx = m.x + m.width / 2;
             let cy = m.y + m.height / 2;
-            window::place(self.wheel_hwnd, cx - half, cy - half, WHEEL_SIZE, WHEEL_SIZE, true);
+            win.place(cx - half, cy - half, WHEEL_SIZE, WHEEL_SIZE, true);
         }
         self.wheel = Some(Wheel { items: items.clone(), dx: 0.0, dy: 0.0, selected: -1 });
         hooks::TRACK_MOUSE.store(true, Ordering::Relaxed);
@@ -753,7 +680,9 @@ impl Engine {
     fn close_wheel(&mut self) {
         hooks::TRACK_MOUSE.store(false, Ordering::Relaxed);
         let Some(w) = self.wheel.take() else { return };
-        window::place(self.wheel_hwnd, 0, 0, 0, 0, false);
+        if let Some(win) = &self.wheel_win {
+            win.place(0, 0, 0, 0, false);
+        }
         let _ = self.app.emit_to("wheel", "wheel-state", WheelState { visible: false, items: vec![], selected: -1 });
         if w.selected >= 0 {
             if let Some(item) = w.items.get(w.selected as usize) {
@@ -764,7 +693,7 @@ impl Engine {
     }
 
     /// Runs every second: saves settings, follows monitor changes and puts our
-    /// ramps back when Windows or a game reset them.
+    /// ramps back when the system or a game reset them.
     fn tick(&mut self) {
         self.ticks += 1;
         if self.dirty {
@@ -775,7 +704,8 @@ impl Engine {
         if self.ticks % 3 != 0 || self.shut_down {
             return;
         }
-        // A safety net for layout changes that arrive without WM_DISPLAYCHANGE.
+        // Catches layout changes that arrive without a system notice (the only way
+        // outside Windows).
         let now = display::enumerate();
         if !MonitorInfo::same_layout(&now, &self.monitors) {
             self.refresh_displays(now);
@@ -814,9 +744,9 @@ impl Engine {
             }
         }
         self.restore_vibrance();
-        // Releases the backends, then ADL2_Main_Control_Destroy through AdlLib's drop.
+        // Releases the backends, then the driver libraries.
         self.vib.clear();
-        self.adl_lib = None;
+        self.drivers.release();
         mag::shutdown();
         let _ = settings::save(&self.settings);
         let _ = std::fs::remove_file(restore_path());

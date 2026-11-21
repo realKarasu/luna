@@ -41,10 +41,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     driverVibrance: false,
     magnifier: true,
     gammaStrength: {},
-    version: "0.3.0",
+    version: "0.4.0",
     dataDir: "",
     autostart: false,
     update: IDLE_UPDATE,
+    platform: "windows",
+    optimizer: true,
+    note: null,
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const latest = useRef(settings);

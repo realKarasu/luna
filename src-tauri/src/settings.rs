@@ -1,4 +1,4 @@
-//! Settings saved as JSON in %APPDATA%\Luna\settings.json.
+//! Settings saved as JSON in Luna's data folder (see `data_dir`).
 //! Every struct uses `#[serde(default)]` so older or partial files still load.
 
 use crate::color::ColorParams;
@@ -248,9 +248,18 @@ impl Default for Settings {
     }
 }
 
+/// `%APPDATA%\Luna` on Windows, `~/Library/Application Support/Luna` on macOS,
+/// `$XDG_CONFIG_HOME/luna` (or `~/.config/luna`) on Linux.
 pub fn data_dir() -> PathBuf {
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
-    base.join("Luna")
+    let var = |k: &str| std::env::var_os(k).filter(|v| !v.is_empty()).map(PathBuf::from);
+    if cfg!(windows) {
+        return var("APPDATA").unwrap_or_else(std::env::temp_dir).join("Luna");
+    }
+    let home = var("HOME").unwrap_or_else(std::env::temp_dir);
+    if cfg!(target_os = "macos") {
+        return home.join("Library").join("Application Support").join("Luna");
+    }
+    var("XDG_CONFIG_HOME").unwrap_or_else(|| home.join(".config")).join("luna")
 }
 
 pub fn settings_path() -> PathBuf {

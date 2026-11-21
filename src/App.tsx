@@ -69,7 +69,7 @@ function applyTheme(t: Theme) {
 }
 
 function Shell() {
-  const { settings } = useStore();
+  const { settings, info } = useStore();
   const [page, setPage] = useState<Page>("display");
   const [background, setBackground] = useState<string | null>(null);
 
@@ -109,10 +109,11 @@ function Shell() {
       <div className="body">
         <Sidebar page={page} onPage={setPage} />
         <main className="content" key={page}>
+          {info.note && <p className="note warn platform-note">{info.note}</p>}
           {page === "display" && <DisplayPage />}
           {page === "presets" && <PresetsPage />}
           {page === "crosshair" && <CrosshairPage />}
-          {page === "optimizer" && <OptimizerPage />}
+          {page === "optimizer" && info.optimizer && <OptimizerPage />}
           {page === "binds" && <BindsPage />}
           {page === "theme" && (
             <ThemePage background={background} onBackground={setBackground} />

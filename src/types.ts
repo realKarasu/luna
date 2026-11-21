@@ -137,6 +137,12 @@ export interface AppState {
   dataDir: string;
   autostart: boolean;
   update: UpdateStatus;
+  /** "windows", "macos" or "linux". */
+  platform: string;
+  /** The Windows Optimizer page exists on this system. */
+  optimizer: boolean;
+  /** Something the user must know or do on this system, or null. */
+  note: string | null;
 }
 
 export interface UpdateStatus {

@@ -158,10 +158,13 @@ export const api = {
       driverVibrance: true,
       magnifier: true,
       gammaStrength: {},
-      version: "0.3.0",
+      version: "0.4.0",
       dataDir: "%APPDATA%\\Luna",
       autostart: false,
       update: IDLE_UPDATE,
+      platform: "windows",
+      optimizer: true,
+      note: null,
     };
   },
   async setSettings(s: Settings): Promise<Record<string, number>> {

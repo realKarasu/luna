@@ -1071,6 +1071,10 @@ a.btn {
   background: #ffcf5a0d;
 }
 
+.platform-note {
+  margin: 0 0 16px;
+}
+
 .field {
   display: flex;
   flex-direction: column;

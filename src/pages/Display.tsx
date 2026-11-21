@@ -11,6 +11,7 @@ import { Icon } from "../components/Icon";
 import { gpuName, vendorLabel, vibranceNote } from "../lib/gpu";
 import { HELP } from "../lib/help";
 import { HelpList } from "../components/Help";
+import { osName } from "../lib/platform";
 
 const PIC_KEY = "luna-preview-picture";
 
@@ -133,7 +134,13 @@ export function DisplayPage() {
             </div>
           ) : (
             <div className="color-tab">
-              {!info.magnifier && <p className="note warn">Windows colour effects are not available on this PC, so hue and saturation can't be applied.</p>}
+              {!info.magnifier && (
+                <p className="note warn">
+                  {info.platform === "windows"
+                    ? "Windows colour effects are not available on this PC, so hue and saturation can't be applied."
+                    : `Hue, saturation and the colour boost use a Windows feature, so they do nothing on ${osName(info.platform)}. Vibrance works only where the graphics driver offers it (NVIDIA on Linux).`}
+                </p>
+              )}
               <Slider label="Hue" value={color.hue} min={-180} max={180} step={1} def={0} unit="°" onChange={(v) => editColor({ hue: v })} />
               <div className="hue-bar" />
               <Slider label="Saturation" value={color.saturation} min={0} max={350} step={1} def={100} unit="%" onChange={(v) => editColor({ saturation: v })} />
@@ -238,7 +245,11 @@ export function DisplayPage() {
               <Chip tone="accent">{settings.binds.zoom?.label ?? "No key"}</Chip>
             </div>
             <p className="muted small">Magnifies the middle of the screen while the key is held.</p>
-            {!info.magnifier && <p className="note warn">Windows magnification is not available on this PC.</p>}
+            {!info.magnifier && (
+              <p className="note warn">
+                {info.platform === "windows" ? "Windows magnification is not available on this PC." : `Ultra Zoom uses the Windows magnifier, so it is not available on ${osName(info.platform)}.`}
+              </p>
+            )}
             <Slider
               label="Zoom"
               value={settings.zoom.factor}
@@ -303,6 +314,7 @@ export function DisplayPage() {
                   disabled={settings.holo.mode === "off"}
                   onChange={(v) => update((s) => ({ ...s, holo: { ...s.holo, strength: v } }))}
                 />
+                {!info.magnifier && <p className="note warn">Sight colours use the Windows colour matrix, so they only work on Windows.</p>}
               </div>
             </>
           ) : (

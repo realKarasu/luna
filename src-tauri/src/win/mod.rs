@@ -7,6 +7,7 @@ pub mod hooks;
 pub mod mag;
 pub mod nvapi;
 pub mod optimizer;
+pub mod vib;
 pub mod window;
 
 use winreg::enums::HKEY_CURRENT_USER;
@@ -35,4 +36,14 @@ pub fn autostart_enabled() -> bool {
         .open_subkey(RUN_KEY)
         .and_then(|k| k.get_value::<String, _>(RUN_NAME))
         .is_ok()
+}
+
+/// Opens a folder in Explorer.
+pub fn open_dir(dir: &std::path::Path) {
+    let _ = std::process::Command::new("explorer.exe").arg(dir).spawn();
+}
+
+/// Something the user should know about this system, shown in the app.
+pub fn note() -> Option<String> {
+    None
 }

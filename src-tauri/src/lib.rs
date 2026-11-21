@@ -1,4 +1,7 @@
-//! Luna: per-screen display tuning, crosshair overlay and Windows gaming tweaks.
+//! Luna: per-screen display tuning, a crosshair overlay and, on Windows, gaming tweaks.
+//!
+//! The shared parts (engine, settings, gamma maths, updates) build everywhere; `plat` is the
+//! module for the system Luna was built for.
 
 pub mod color;
 pub mod gamma;
@@ -6,20 +9,33 @@ pub mod settings;
 pub mod sharecode;
 pub mod vibrance;
 
-#[cfg(windows)]
 mod engine;
-#[cfg(windows)]
+mod input;
+mod screens;
 mod update;
-#[cfg(windows)]
-mod win;
 
 #[cfg(windows)]
+mod win;
+#[cfg(windows)]
+use win as plat;
+
+#[cfg(not(windows))]
+mod unix;
+#[cfg(target_os = "macos")]
+mod mac;
+#[cfg(target_os = "macos")]
+use mac as plat;
+#[cfg(target_os = "linux")]
+mod linux;
+#[cfg(target_os = "linux")]
+use linux as plat;
+
 mod app {
     use crate::engine::{self, engine, Engine, EngineMsg, UiMsg};
     use crate::settings::{self, Settings};
     use crate::sharecode::{self, SharePayload};
     use crate::update::{self, UpdateStatus};
-    use crate::win::{self, display::MonitorInfo, hooks, optimizer};
+    use crate::plat::{self, display::MonitorInfo, hooks, optimizer, window::Overlay};
     use serde::Serialize;
     use std::collections::HashMap;
     use std::sync::mpsc::{channel, Sender};
@@ -45,7 +61,14 @@ mod app {
         monitors: Vec<MonitorInfo>,
         /// At least one screen gets its vibrance from the graphics driver.
         driver_vibrance: bool,
+        /// The full-screen colour matrix and Ultra Zoom work here (Windows magnifier).
         magnifier: bool,
+        /// "windows", "macos" or "linux".
+        platform: &'static str,
+        /// The Optimizer page has something to offer here.
+        optimizer: bool,
+        /// Something the user should know about this system (missing permission, Wayland).
+        note: Option<String>,
         gamma_strength: HashMap<String, f64>,
         version: String,
         data_dir: String,
@@ -62,11 +85,14 @@ mod app {
             settings: e.settings.clone(),
             monitors: e.monitors.clone(),
             driver_vibrance: e.driver_vibrance(),
-            magnifier: win::mag::available(),
+            magnifier: plat::mag::available(),
+            platform: std::env::consts::OS,
+            optimizer: cfg!(windows),
+            note: plat::note(),
             gamma_strength: e.gamma_strength.clone(),
             version: app.package_info().version.to_string(),
             data_dir: settings::data_dir().display().to_string(),
-            autostart: win::autostart_enabled(),
+            autostart: plat::autostart_enabled(),
             update: update::status(),
         }
     }
@@ -141,8 +167,8 @@ mod app {
 
     #[tauri::command]
     async fn set_autostart(on: bool) -> Result<bool, String> {
-        win::set_autostart(on)?;
-        Ok(win::autostart_enabled())
+        plat::set_autostart(on)?;
+        Ok(plat::autostart_enabled())
     }
 
     fn background_path() -> std::path::PathBuf {
@@ -175,7 +201,7 @@ mod app {
     async fn open_data_dir() {
         let dir = settings::data_dir();
         let _ = std::fs::create_dir_all(&dir);
-        let _ = std::process::Command::new("explorer.exe").arg(dir).spawn();
+        plat::open_dir(&dir);
     }
 
     #[tauri::command]
@@ -225,8 +251,8 @@ mod app {
         }
     }
 
-    fn overlay(app: &AppHandle, label: &str, page: &str, size: f64) -> isize {
-        let built = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+    fn overlay(app: &AppHandle, label: &str, page: &str, size: f64) -> Option<Overlay> {
+        let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
             .title(format!("Luna {label}"))
             .transparent(true)
             .decorations(false)
@@ -236,22 +262,13 @@ mod app {
             .resizable(false)
             .focused(false)
             .visible(false)
-            .inner_size(size, size)
-            .build();
-        match built {
-            Ok(w) => {
-                let _ = w.set_ignore_cursor_events(true);
-                match w.hwnd() {
-                    Ok(h) => {
-                        let raw = h.0 as isize;
-                        win::window::make_overlay(raw);
-                        raw
-                    }
-                    Err(_) => 0,
-                }
-            }
-            Err(_) => 0,
-        }
+            .inner_size(size, size);
+        // Windows gets the same through extended styles in make_overlay.
+        #[cfg(not(windows))]
+        let builder = builder.focusable(false).visible_on_all_workspaces(true);
+        let w = builder.build().ok()?;
+        let _ = w.set_ignore_cursor_events(true);
+        Overlay::from_window(&w)
     }
 
     fn build_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -392,6 +409,9 @@ mod app {
                 if window.label() != "main" {
                     return;
                 }
+                if let WindowEvent::Focused(on) = event {
+                    crate::input::MAIN_FOCUSED.store(*on, std::sync::atomic::Ordering::Relaxed);
+                }
                 if let WindowEvent::CloseRequested { api, .. } = event {
                     let to_tray = engine::engine_ready() && engine().settings.app.close_to_tray;
                     if to_tray {
@@ -412,12 +432,6 @@ mod app {
     }
 }
 
-#[cfg(windows)]
 pub fn run() {
     app::run()
-}
-
-#[cfg(not(windows))]
-pub fn run() {
-    eprintln!("Luna runs on Windows 10 and 11 only.");
 }

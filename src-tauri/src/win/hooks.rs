@@ -1,7 +1,7 @@
 //! Low-level keyboard and mouse hooks on their own thread with a message loop.
 //! The hook procedures only forward events to a channel, so they stay fast.
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Mutex, OnceLock};
 use windows::core::w;
@@ -16,18 +16,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
     WS_EX_TOOLWINDOW, WS_POPUP,
 };
 
-#[derive(Debug, Clone, Copy)]
-pub enum HookEvent {
-    Down(u32),
-    Up(u32),
-    MouseDelta(i32, i32),
-    /// Windows changed the screen layout, a resolution or a graphics card.
-    DisplayChanged,
-}
+pub use crate::input::{HookEvent, TRACK_MOUSE};
 
 static SENDER: OnceLock<Mutex<Sender<HookEvent>>> = OnceLock::new();
-/// Set while the look wheel is open, so mouse moves are forwarded.
-pub static TRACK_MOUSE: AtomicBool = AtomicBool::new(false);
 static PRESSED: [AtomicU64; 4] = [AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0), AtomicU64::new(0)];
 
 fn send(e: HookEvent) {
@@ -148,55 +139,14 @@ pub fn is_down(vk: i32) -> bool {
     unsafe { (GetAsyncKeyState(vk) as u16 & 0x8000) != 0 }
 }
 
-/// A readable name for a virtual-key code.
+/// A readable name for a virtual-key code. Keys whose sign depends on the keyboard
+/// layout are named by Windows.
 pub fn key_label(vk: u32) -> String {
-    let fixed = match vk {
-        1 => Some("Mouse 1"),
-        2 => Some("Mouse 2"),
-        4 => Some("Mouse 3"),
-        5 => Some("Mouse 4"),
-        6 => Some("Mouse 5"),
-        0x08 => Some("Backspace"),
-        0x09 => Some("Tab"),
-        0x0D => Some("Enter"),
-        0x10 | 0xA0 => Some("Shift"),
-        0xA1 => Some("Right Shift"),
-        0x11 | 0xA2 => Some("Ctrl"),
-        0xA3 => Some("Right Ctrl"),
-        0x12 | 0xA4 => Some("Alt"),
-        0xA5 => Some("Right Alt"),
-        0x13 => Some("Pause"),
-        0x14 => Some("Caps Lock"),
-        0x1B => Some("Esc"),
-        0x20 => Some("Space"),
-        0x21 => Some("Page Up"),
-        0x22 => Some("Page Down"),
-        0x23 => Some("End"),
-        0x24 => Some("Home"),
-        0x25 => Some("Left"),
-        0x26 => Some("Up"),
-        0x27 => Some("Right"),
-        0x28 => Some("Down"),
-        0x2C => Some("Print Screen"),
-        0x2D => Some("Insert"),
-        0x2E => Some("Delete"),
-        0x5B => Some("Left Win"),
-        0x5C => Some("Right Win"),
-        0x90 => Some("Num Lock"),
-        0x91 => Some("Scroll Lock"),
-        _ => None,
-    };
-    if let Some(f) = fixed {
-        return f.to_string();
-    }
-    if (0x70..=0x87).contains(&vk) {
-        return format!("F{}", vk - 0x6F);
-    }
-    if (0x30..=0x39).contains(&vk) || (0x41..=0x5A).contains(&vk) {
-        return char::from_u32(vk).map(|c| c.to_string()).unwrap_or_default();
-    }
-    if (0x60..=0x69).contains(&vk) {
-        return format!("Num {}", vk - 0x60);
+    let layout_key = (0x6A..=0x6F).contains(&vk) || (0xBA..=0xDF).contains(&vk);
+    if !layout_key {
+        if let Some(l) = crate::input::basic_label(vk) {
+            return l;
+        }
     }
     unsafe {
         let sc = MapVirtualKeyW(vk, MAPVK_VK_TO_VSC_EX);

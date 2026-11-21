@@ -6,11 +6,15 @@ import { Icon, MoonLogo } from "../components/Icon";
 import { gpuName, usesDriver, vendorLabel, vibranceSummary } from "../lib/gpu";
 import { HELP } from "../lib/help";
 import { HelpList } from "../components/Help";
+import { osName } from "../lib/platform";
 
 export function SettingsPage() {
   const { settings, monitors, info, update, toast, setInfo } = useStore();
   const app = settings.app;
   const setApp = (patch: Partial<typeof app>) => update((s) => ({ ...s, app: { ...s.app, ...patch } }));
+
+  const os = osName(info.platform);
+  const win = info.platform === "windows";
 
   const autostart = async (on: boolean) => {
     try {
@@ -25,10 +29,10 @@ export function SettingsPage() {
   return (
     <div className="page">
       <Panel title="Startup and tray">
-        <Row title="Start with Windows" desc="Luna opens when you sign in, so your screens are tuned right away.">
-          <Toggle on={info.autostart} label="Start with Windows" onChange={autostart} />
+        <Row title={`Start with ${os}`} desc="Luna opens when you sign in, so your screens are tuned right away.">
+          <Toggle on={info.autostart} label={`Start with ${os}`} onChange={autostart} />
         </Row>
-        <Row title="Start minimized" desc="When started with Windows, stay in the tray instead of opening the window.">
+        <Row title="Start minimized" desc="When started at sign-in, stay in the tray instead of opening the window.">
           <Toggle on={app.startMinimized} label="Start minimized" onChange={(v) => setApp({ startMinimized: v })} />
         </Row>
         <Row title="Close to tray" desc="The close button hides Luna and keeps tuning running. Quit from the tray icon.">
@@ -38,7 +42,7 @@ export function SettingsPage() {
 
       <UpdatesPanel />
 
-      <Panel title="Your data" subtitle="Everything stays on this PC. Luna has no account and sends nothing about you anywhere.">
+      <Panel title="Your data" subtitle="Everything stays on this computer. Luna has no account and sends nothing about you anywhere.">
         <Row title="Settings folder" desc={<span className="mono">{info.dataDir || "%APPDATA%\\Luna"}</span>}>
           <button type="button" className="btn" disabled={!isTauri} onClick={() => api.openDataDir()}>
             <Icon name="folder" size={15} /> Open
@@ -51,7 +55,7 @@ export function SettingsPage() {
         </Row>
       </Panel>
 
-      <Panel title="Screens and graphics cards" subtitle="Found by Luna when it starts and again whenever Windows changes the screens.">
+      <Panel title="Screens and graphics cards" subtitle="Found by Luna when it starts and again whenever the screens change.">
         {monitors.map((m) => (
           <Row
             key={m.id}
@@ -88,8 +92,8 @@ export function SettingsPage() {
             </p>
             <p className="muted small">
               Graphics card features:{" "}
-              {info.driverVibrance ? `${vibranceSummary(monitors)} from the driver.` : "no driver vibrance, colour boost used instead."} Windows colour effects:{" "}
-              {info.magnifier ? "available." : "not available."}
+              {info.driverVibrance ? `${vibranceSummary(monitors)} from the driver.` : "no driver vibrance, colour boost used instead."} {win ? "Windows colour effects:" : "Hue, saturation and zoom:"}{" "}
+              {info.magnifier ? "available." : win ? "not available." : "Windows only."}
             </p>
             <a className="btn small" href="./security.html">
               <Icon name="info" size={14} /> Is Luna safe?
