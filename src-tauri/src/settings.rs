@@ -153,6 +153,8 @@ pub struct Theme {
     pub effect: f64,
     pub font: String,
     pub radius: String,
+    /// Whole look: "nebula" (default), "observatoire", "calibration", "terrain" or "studio".
+    pub skin: String,
 }
 
 impl Default for Theme {
@@ -163,6 +165,7 @@ impl Default for Theme {
             effect: 60.0,
             font: "hanken".into(),
             radius: "soft".into(),
+            skin: "nebula".into(),
         }
     }
 }
@@ -296,6 +299,16 @@ mod tests {
         assert!(!s.tuning_on);
         assert_eq!(s.theme.accent, "#ff0000");
         assert_eq!(s.theme.font, "hanken");
+        assert_eq!(s.theme.skin, "nebula");
         assert_eq!(s.binds.wheel.as_ref().map(|b| b.vk), Some(0x76));
+    }
+
+    #[test]
+    fn skin_survives_a_round_trip() {
+        let s: Settings = serde_json::from_str(r##"{"theme": {"skin": "terrain", "accent": "#9be37a"}}"##).unwrap();
+        assert_eq!(s.theme.skin, "terrain");
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(back.theme.skin, "terrain");
+        assert_eq!(back.theme.accent, "#9be37a");
     }
 }

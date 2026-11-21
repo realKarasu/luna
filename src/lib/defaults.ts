@@ -109,7 +109,7 @@ export function defaultSettings(): Settings {
       slots: Array(8).fill(null),
       slotNames: Array(8).fill(""),
     },
-    theme: { background: "sky", accent: "#a86dff", effect: 60, font: "hanken", radius: "soft" },
+    theme: { background: "sky", accent: "#a86dff", effect: 60, font: "hanken", radius: "soft", skin: "nebula" },
     app: { startWithWindows: false, startMinimized: false, closeToTray: true },
   };
 }

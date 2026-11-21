@@ -81,7 +81,10 @@ export interface Theme {
   effect: number;
   font: "hanken" | "segoe" | "bahnschrift" | "mono";
   radius: "sharp" | "soft" | "round";
+  skin: Skin;
 }
+
+export type Skin = "nebula" | "observatoire" | "calibration" | "terrain" | "studio";
 
 export interface Settings {
   version: number;

@@ -36,8 +36,13 @@ Luna is a free, open-source Windows 10/11 (x64) app that tunes each of your scre
 - **Clean temp files** deletes only files older than one day from your temp folder and reports the space freed.
 
 ### Theme and settings
-- Animated night-sky background with its own moon, or your own picture or GIF.
-- Accent colour, glass and glow amount, font and corner roundness.
+- Five styles that change the whole look of the app, each with its own fonts and one detail of its own:
+  - **Nebula** (default): animated night-sky background with its own moon, or your own picture or GIF, glass panels, plus glow amount, font and corner roundness.
+  - **Observatoire**: graphite night, quiet instruments, tick marks under every slider.
+  - **Calibration**: light measuring lab, pages as tabs on top, a grey step wedge and channel ramps under the preview.
+  - **Terrain**: phosphor green, icon rail, sight brackets on the panels, segmented sliders and a readout over the preview.
+  - **Studio**: dense grading suite with a live histogram under the preview.
+- Accent colour for every style.
 - Start with Windows, start minimized to the tray, close to tray, and a tray icon with quick toggles.
 
 Settings are saved as JSON in `%APPDATA%\Luna`.

@@ -1,6 +1,6 @@
 [package]
 name = "luna"
-version = "0.1.0"
+version = "0.2.0"
 description = "Luna: per-screen display tuning, crosshair overlay and gaming tweaks for Windows"
 authors = ["Luna contributors"]
 license = "MIT"
