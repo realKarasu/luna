@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="What Luna does on your PC, what it never does, and how to check it yourself." />
+    <meta name="description" content="What Luna does on your computer, what it never does, and how to check it yourself." />
     <link rel="icon" type="image/svg+xml" href="./luna.svg" />
     <title>Is Luna safe? | Luna</title>
   </head>
@@ -20,8 +20,8 @@
     <main class="wrap">
       <h1>Is Luna safe?</h1>
       <p class="lead">
-        Yes. Luna is an ordinary Windows program that changes how your screens show colour, using settings Windows and your graphics driver
-        already offer to every app. It never goes inside a game and never reads game memory. The only thing it does online is look for a new
+        Yes. Luna is an ordinary program for Windows, macOS and Linux that changes how your screens show colour, using settings your system and
+        your graphics driver already offer to every app. It never goes inside a game and never reads game memory. The only thing it does online is look for a new
         version of itself on the project's GitHub page, and you can turn that off. All of its code is open, so you can read it and build it
         yourself.
       </p>
@@ -86,32 +86,40 @@
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
             <strong>Gamma, brightness, contrast and RGB</strong>
-            <p>The display colour curve every screen has (SetDeviceGammaRamp), the same one night light tools and calibration apps use.</p>
+            <p>
+              The display colour curve every screen has, the same one night light tools and calibration apps use: SetDeviceGammaRamp on Windows,
+              CGSetDisplayTransferByTable on macOS and XRandR on Linux. Night vision uses this curve too.
+            </p>
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
-            <strong>Hue, saturation, night vision and Ultra Zoom</strong>
-            <p>The Windows Magnification API, a full screen colour filter and zoom that is part of Windows.</p>
+            <strong>Hue, saturation, sight colours and Ultra Zoom (Windows)</strong>
+            <p>The Windows Magnification API, a full screen colour filter and zoom that is part of Windows. macOS and Linux have no such filter, so these tools only exist on Windows.</p>
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
             <strong>Vibrance on NVIDIA and AMD cards</strong>
             <p>
               The driver's own setting: digital vibrance through nvapi64.dll on NVIDIA, saturation through atiadlxx.dll on AMD. Both are loaded only from
-              the Windows System32 folder, and only when that card is present. Intel and other cards get the full screen colour filter instead.
+              the Windows System32 folder, and only when that card is present. Intel and other cards get the full screen colour filter instead. On
+              Linux, NVIDIA vibrance goes through nvidia-settings, the tool that comes with the NVIDIA driver.
             </p>
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
             <strong>Finding your graphics card</strong>
-            <p>DXGI, the Windows graphics list, tells Luna which card drives each screen. Luna reads the card's name and maker, nothing else.</p>
+            <p>
+              DXGI, the Windows graphics list, tells Luna which card drives each screen; on Linux, the card list in /sys/class/drm does. Luna reads the
+              card's name and maker, nothing else.
+            </p>
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
             <strong>Binds and the look wheel</strong>
             <p>
-              A keyboard and mouse listener (low level hooks) tells Luna when a key goes up or down. Luna compares it with the keys you set and passes
-              it straight on. Mouse movement is read only while the look wheel is open.
+              On Windows, a keyboard and mouse listener (low level hooks) tells Luna when a key goes up or down. On macOS and Linux, Luna asks the
+              system which keys are held, about a hundred times a second; macOS only allows this once you turn Luna on under Accessibility. Luna
+              compares the keys with the ones you set and never blocks or changes them. Mouse movement is read only while the look wheel is open.
             </p>
           </li>
           <li class="yes">
@@ -121,7 +129,7 @@
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
-            <strong>Optimizer</strong>
+            <strong>Optimizer (Windows)</strong>
             <p>
               Only the Windows settings you switch on, all in your own user settings (power plan, Game Mode, Game Bar recording, mouse acceleration and
               others). The old value is saved first, so Undo puts it back.
@@ -129,16 +137,19 @@
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
-            <strong>Settings and Start with Windows</strong>
-            <p>Plain JSON files in your AppData folder, and one entry in your own startup list, only if you turn it on.</p>
+            <strong>Settings and start with your computer</strong>
+            <p>
+              Plain JSON files in your own settings folder, and one entry in your own startup list, only if you turn it on: the Run key on Windows, a
+              LaunchAgent on macOS, an autostart file on Linux.
+            </p>
           </li>
           <li class="yes">
             <span class="mark" aria-hidden="true">&check;</span>
             <strong>Updates</strong>
             <p>
               A few seconds after it starts, then every 6 hours, Luna reads latest.json from the project's latest GitHub release over HTTPS. When it
-              names a newer version, Luna downloads that installer and checks its signature against the key built into Luna, so a file that was
-              changed or did not come from the project is refused. Your screens are put back first, then the installer runs and Luna starts again.
+              names a newer version, Luna downloads that package and checks its signature against the key built into Luna, so a file that was
+              changed or did not come from the project is refused. Your screens are put back first, then the new version is installed and Luna starts again.
               Turn off Automatic updates in Settings and Luna only checks when you press Check now.
             </p>
           </li>
@@ -151,8 +162,8 @@
           <div class="card">
             <h3>Read the code</h3>
             <p>
-              Luna is MIT licensed. Every Windows call lives in a handful of small Rust files, one per feature, so the list below is easy to compare
-              with the source.
+              Luna is MIT licensed. Every system call lives in a handful of small Rust files, one folder per system (win, mac, linux), so the list below
+              is easy to compare with the source.
             </p>
             <h3>Build your own copy</h3>
             <p>Install Rust and Node.js, then run these two commands in the Luna folder. The program you get is made only from the code you read.</p>
@@ -161,19 +172,21 @@ npm run tauri build</pre>
           </div>
           <div class="card">
             <h3>Compare a download</h3>
-            <p>In PowerShell you can print the fingerprint of any file and compare it with the one published with each release:</p>
-            <pre class="cmd">Get-FileHash .\Luna_x64-setup.exe</pre>
-            <h3>About the SmartScreen warning</h3>
+            <p>Print the fingerprint of any file and compare it with the one published with each release:</p>
+            <pre class="cmd">Get-FileHash .\Luna_x.y.z_x64-setup.exe     # Windows, PowerShell
+shasum -a 256 Luna_x.y.z_universal.dmg     # macOS
+sha256sum Luna_x.y.z_amd64.AppImage        # Linux</pre>
+            <h3>About the system warnings</h3>
             <p>
-              Windows warns about new programs that are not signed with a paid certificate. It is not a virus alert. Choose More info, then Run anyway,
-              or build Luna yourself.
+              Windows and macOS warn about new programs that are not signed with a paid certificate. It is not a virus alert. On Windows choose More
+              info, then Run anyway. On macOS click Open Anyway in System Settings &gt; Privacy &amp; Security. Or build Luna yourself.
             </p>
           </div>
         </div>
       </section>
 
       <section aria-labelledby="list">
-        <h2 id="list">Every Windows function that matters</h2>
+        <h2 id="list">Every system function that matters</h2>
         <p class="lead small">The calls a cautious player may ask about, where Luna uses them, and what it does not use at all.</p>
         <pre class="listing">
 Luna, Windows functions in its own code
@@ -201,7 +214,7 @@ Used, and why
   RegQueryValueExW             reads the old value first so Undo can put it back
   HTTPS GET (Rust reqwest)     latest.json and the signed installer from github.com, nothing sent
 
-Programs Luna starts
+Programs Luna starts on Windows
   powercfg.exe                 copies the High performance plan, only if Windows hides it
   explorer.exe                 opens your settings folder, only when you click it
   Luna_x.y.z_x64-setup.exe     a new version, only after its signature is checked
@@ -222,6 +235,21 @@ Never called by Luna's own code
   CreateServiceW               install a service
   NtLoadDriver                 load a kernel driver
   DeviceIoControl              talk to a driver directly
+
+macOS, in its own code
+  CGSetDisplayTransferByTable  colour curve of each screen
+  CGGetDisplayTransferByTable  remembers each screen's curve so it can be put back
+  CGGetActiveDisplayList       lists your screens and their positions
+  AXIsProcessTrusted           checks whether binds are allowed, asks for nothing
+  open                         opens your settings folder, only when you click it
+
+Linux (X11), in its own code
+  XRRSetCrtcGamma              colour curve of each screen
+  XRRGetCrtcGamma              remembers each screen's curve so it can be put back
+  XRRGetScreenResourcesCurrent lists your screens and their positions
+  XQueryKeymap, XQueryPointer  which keys are held, where the mouse points
+  nvidia-settings              NVIDIA vibrance, only on NVIDIA cards
+  xdg-open                     opens your settings folder, only when you click it
 
 Result: no injection, no memory access, no driver, nothing sent about you.
         </pre>
