@@ -26,6 +26,7 @@ const PATHS: Record<string, string> = {
   broom: "M14 3l-4 9 M6 13h8l2 8H4z M8 17v4 M12 17v4",
   mouse: "M8 4h8v16H8z M12 4v6",
   borderless: "M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5 M9 9h6v6H9z",
+  games: "M7 8h10a5 5 0 0 1 5 5v1.5a2.5 2.5 0 0 1-4.6 1.4L16 14H8l-1.4 1.9A2.5 2.5 0 0 1 2 14.5V13a5 5 0 0 1 5-5z M7.5 10.5v3 M6 12h3 M15.5 11h.01 M17.5 13h.01",
   zoom: "M10 4a6 6 0 1 0 .01 0 M15 15l5 5 M10 7v6 M7 10h6",
   moon: "M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z",
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 .01 0",

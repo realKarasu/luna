@@ -76,3 +76,52 @@ body,
   fill: #8a8499;
   font-size: 12px;
 }
+
+/* FPS counter: the window is 200 x 76 on a 1080p screen, sizes follow its height. */
+.fps {
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  padding: 8vh 12vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2vh;
+  border-radius: 14vh;
+  background: rgba(10, 12, 16, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f2f4f7;
+  font-family: "Hanken Grotesk", "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.fps-main {
+  display: flex;
+  align-items: baseline;
+  gap: 6vh;
+  line-height: 1;
+}
+
+.fps-value {
+  font-size: 42vh;
+  font-weight: 600;
+}
+
+.fps-unit {
+  font-size: 17vh;
+  color: rgba(242, 244, 247, 0.62);
+}
+
+.fps-meta {
+  display: flex;
+  gap: 14vh;
+  font-size: 16vh;
+  line-height: 1;
+  color: rgba(242, 244, 247, 0.62);
+}
+
+.fps-note {
+  font-size: 16vh;
+  line-height: 1.25;
+  color: rgba(242, 244, 247, 0.8);
+}

@@ -2038,3 +2038,67 @@ a.btn {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ---------------- games ---------------- */
+
+.games-note {
+  margin: 12px 0 0;
+}
+
+.games-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 4px 0 8px;
+  padding: 12px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-ctl);
+}
+
+.games-add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.games-add + .games-add {
+  margin-top: 8px;
+}
+
+.games-add .select {
+  flex: 1;
+  min-width: 0;
+}
+
+.game-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.game-card.off .game-grid,
+.game-card.off .game-switches {
+  opacity: 0.5;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field .select {
+  width: 100%;
+}
+
+.game-switches {
+  margin-top: 12px;
+}

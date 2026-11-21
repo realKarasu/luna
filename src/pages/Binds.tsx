@@ -44,6 +44,8 @@ export function BindsPage() {
           {line({ key: "tuning" }, "Tuning on/off", "Press to switch every adjustment on or off.")}
           {line({ key: "wheel" }, "Look wheel", "Hold, point the mouse at a preset, release to apply it.")}
           {info.platform === "windows" && line({ key: "borderless" }, "Borderless window", "Press in game to take the frame off the window in front. Press again to put it back.")}
+          {info.platform === "windows" && line({ key: "fps" }, "FPS counter", "Press to show or hide the frame counter in the corner of the screen.")}
+          {info.platform === "windows" && line({ key: "potato" }, "Potato Mode", "Press to give the game everything the PC has. Press again to put it all back.")}
         </div>
       </Panel>
 

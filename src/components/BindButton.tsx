@@ -4,7 +4,7 @@ import { useStore } from "../store";
 import { api } from "../lib/backend";
 import { Icon } from "./Icon";
 
-export type Slot = { key: "zoom" | "nvg" | "tuning" | "wheel" | "borderless" } | { key: "color"; index: number };
+export type Slot = { key: "zoom" | "nvg" | "tuning" | "wheel" | "borderless" | "fps" | "potato" } | { key: "color"; index: number };
 
 export const slotId = (s: Slot) => (s.key === "color" ? `color-${s.index}` : s.key);
 
@@ -22,7 +22,7 @@ export function setBind(b: Binds, s: Slot, v: Bind | null): Binds {
 }
 
 function allSlots(): Slot[] {
-  return [{ key: "zoom" }, { key: "nvg" }, { key: "tuning" }, { key: "wheel" }, { key: "borderless" }, ...[0, 1, 2, 3].map((index) => ({ key: "color" as const, index }))];
+  return [{ key: "zoom" }, { key: "nvg" }, { key: "tuning" }, { key: "wheel" }, { key: "borderless" }, { key: "fps" }, { key: "potato" }, ...[0, 1, 2, 3].map((index) => ({ key: "color" as const, index }))];
 }
 
 export type Recorder = {

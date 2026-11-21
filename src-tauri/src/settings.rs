@@ -26,6 +26,10 @@ pub struct Binds {
     pub wheel: Option<Bind>,
     /// Switches the window in front between borderless and its normal frame.
     pub borderless: Option<Bind>,
+    /// Shows or hides the FPS counter.
+    pub fps: Option<Bind>,
+    /// Turns Potato Mode on or off.
+    pub potato: Option<Bind>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -126,6 +130,71 @@ pub struct Borderless {
     /// Used by the key and the Make borderless button.
     pub fit: Fit,
     pub games: Vec<BorderlessGame>,
+}
+
+/// A screen mode: size in pixels and refresh rate.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct DisplayMode {
+    pub width: i32,
+    pub height: i32,
+    pub hz: i32,
+}
+
+/// What Luna changes while one game runs. Everything goes back when it closes.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct GameProfile {
+    /// File name of the program, like `game.exe`.
+    pub exe: String,
+    /// Shown in the list.
+    pub name: String,
+    pub enabled: bool,
+    /// Monitor device name for the gamma preset and the screen mode, empty = the selected screen.
+    pub monitor: String,
+    /// Gamma preset id, empty = leave the screen as it is.
+    pub gamma: String,
+    /// Colour preset id, empty = leave the colour as it is.
+    pub color: String,
+    /// "" (leave it), "off", "on", or "slot0" to "slot7" for a saved crosshair.
+    pub crosshair: String,
+    /// Screen mode while the game runs, none = leave it.
+    pub mode: Option<DisplayMode>,
+    /// Potato Mode while the game runs.
+    pub potato: bool,
+}
+
+impl Default for GameProfile {
+    fn default() -> Self {
+        GameProfile {
+            exe: String::new(),
+            name: String::new(),
+            enabled: true,
+            monitor: String::new(),
+            gamma: String::new(),
+            color: String::new(),
+            crosshair: String::new(),
+            mode: None,
+            potato: false,
+        }
+    }
+}
+
+/// The FPS counter in a corner of a screen.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct FpsSettings {
+    pub enabled: bool,
+    /// "topLeft", "topRight", "bottomLeft" or "bottomRight".
+    pub corner: String,
+    /// Monitor device name, empty = primary.
+    pub monitor: String,
+}
+
+impl Default for FpsSettings {
+    fn default() -> Self {
+        FpsSettings { enabled: false, corner: "topLeft".into(), monitor: String::new() }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -254,6 +323,9 @@ pub struct Settings {
     pub color_presets: Vec<ColorPreset>,
     pub presets_seeded: bool,
     pub crosshair: CrosshairSettings,
+    /// Looks, screen mode and Potato Mode per game.
+    pub games: Vec<GameProfile>,
+    pub fps: FpsSettings,
     pub theme: Theme,
     pub app: AppPrefs,
 }
@@ -284,6 +356,8 @@ impl Default for Settings {
             color_presets: Vec::new(),
             presets_seeded: false,
             crosshair: CrosshairSettings::default(),
+            games: Vec::new(),
+            fps: FpsSettings::default(),
             theme: Theme::default(),
             app: AppPrefs::default(),
         }
@@ -366,6 +440,23 @@ mod tests {
         let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back.theme.skin, "terrain");
         assert_eq!(back.theme.accent, "#9be37a");
+    }
+
+    #[test]
+    fn game_profiles_fill_their_defaults() {
+        let s: Settings =
+            serde_json::from_str(r##"{"games": [{"exe": "ashfall.exe", "mode": {"width": 1920, "height": 1080, "hz": 144}}]}"##)
+                .unwrap();
+        let g = &s.games[0];
+        assert!(g.enabled);
+        assert!(!g.potato);
+        assert!(g.gamma.is_empty() && g.crosshair.is_empty());
+        assert_eq!(g.mode, Some(DisplayMode { width: 1920, height: 1080, hz: 144 }));
+        assert!(!s.fps.enabled);
+        assert_eq!(s.fps.corner, "topLeft");
+        assert!(s.binds.fps.is_none() && s.binds.potato.is_none());
+        let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
+        assert_eq!(back.games, s.games);
     }
 
     #[test]

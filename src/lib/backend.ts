@@ -2,7 +2,7 @@
 // small demo backend so the interface can still be explored.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppState, Bind, CleanItem, CleanReport, CleanResult, Fit, MonitorInfo, Page, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
+import type { AppState, Bind, CleanItem, CleanReport, CleanResult, DisplayMode, Fit, GamesStatus, MonitorInfo, Page, PotatoStatus, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
 import { defaultSettings } from "./defaults";
 import { decodeShare, encodeShare } from "./sharecode";
 
@@ -58,6 +58,18 @@ const DEMO_MONITORS: MonitorInfo[] = [
   },
 ];
 const demoTweaks: Record<string, boolean> = {};
+const DEMO_MODES: Record<string, DisplayMode[]> = {
+  big: [2560, 1920, 1600, 1280].flatMap((w) => {
+    const h = Math.round((w * 9) / 16);
+    return [165, 144, 120, 60].map((hz) => ({ width: w, height: h, hz }));
+  }),
+  small: [1920, 1600, 1280].flatMap((w) => {
+    const h = Math.round((w * 9) / 16);
+    return [240, 144, 60].map((hz) => ({ width: w, height: h, hz }));
+  }),
+};
+const POTATO_OFF: PotatoStatus = { on: false, manual: false, game: null, tweaks: [], slowed: 0, boosted: null };
+let demoPotato: PotatoStatus = POTATO_OFF;
 let demoWindows: WindowInfo[] = [
   { id: 101, title: "Ashfall Frontier", exe: "ashfall.exe", width: 2560, height: 1440, borderless: false, framed: true },
   { id: 102, title: "Voice chat", exe: "voicechat.exe", width: 1280, height: 760, borderless: false, framed: true },
@@ -195,7 +207,7 @@ export const api = {
       driverVibrance: true,
       magnifier: true,
       gammaStrength: {},
-      version: "0.6.0",
+      version: "0.7.0",
       dataDir: "%APPDATA%\\Luna",
       autostart: false,
       update: IDLE_UPDATE,
@@ -282,6 +294,24 @@ export const api = {
     if (isTauri) return invoke("borderless_restore", { id });
     return demoSet(id, false);
   },
+  async displayModes(monitor: string): Promise<DisplayMode[]> {
+    if (isTauri) return invoke("display_modes", { monitor });
+    return monitor.endsWith("2") ? DEMO_MODES.small : DEMO_MODES.big;
+  },
+  async gamesStatus(): Promise<GamesStatus> {
+    if (isTauri) return invoke("games_status");
+    return { active: null, potato: demoPotato, fps: null };
+  },
+  async potatoSet(on: boolean): Promise<GamesStatus> {
+    if (isTauri) return invoke("potato_set", { on });
+    demoPotato = on ? { on: true, manual: true, game: null, tweaks: ["power", "gameMode", "transparency"], slowed: 14, boosted: "ashfall.exe" } : POTATO_OFF;
+    return { active: null, potato: demoPotato, fps: null };
+  },
+  /** A game with a profile started or closed, or Potato Mode changed. */
+  onGameChanged: (cb: (s: GamesStatus) => void) => on<GamesStatus>("game-changed", cb),
+  onGameError: (cb: (e: string) => void) => on<string>("game-error", cb),
+  /** The FPS counter: "running", "needsAdmin", "error" or "off". */
+  onFpsState: (cb: (state: string) => void) => on<string>("fps-state", cb),
   /** The borderless key was used in game; carries the reason when it did nothing. */
   onBorderlessChanged: (cb: (error: string | null) => void) => on<string | null>("borderless-changed", cb),
   async shareEncode(p: SharePayload): Promise<string> {

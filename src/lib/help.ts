@@ -111,3 +111,22 @@ export const CLEAN_HELP: HelpItem[] = [
     "Caches grow back as you use your programs, and that is normal: it is what keeps pages and games loading fast. Cleaning once a month, or when the disk is nearly full, is plenty.",
   ],
 ];
+
+export const GAMES_HELP: HelpItem[] = [
+  [
+    "When does a profile start?",
+    "Luna looks at the running programs every two seconds. A couple of seconds after the game opens, its gamma, colour, crosshair and screen mode are set. When it closes, or if Luna quits or crashes, everything goes back.",
+  ],
+  [
+    "The resolution did not change.",
+    "Only the modes the screen offers are listed. A game in exclusive full screen sets its own resolution and wins: use windowed or borderless mode, or pick the same mode in the game.",
+  ],
+  [
+    "The FPS counter shows dashes.",
+    "It counts the game in front, and only Direct3D 9 to 12 games. Vulkan and OpenGL games are not counted yet. Windows also asks for Luna to run as administrator, and an overlay cannot show over exclusive full screen.",
+  ],
+  [
+    "Is Potato Mode safe?",
+    "It only changes priorities and five Optimizer switches that undo cleanly, and it writes down what it changed. Turning it off, quitting Luna or the next start after a crash puts everything back.",
+  ],
+];

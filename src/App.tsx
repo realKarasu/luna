@@ -9,6 +9,7 @@ import { PresetsPage } from "./pages/Presets";
 import { CrosshairPage } from "./pages/CrosshairPage";
 import { ZoomPage } from "./pages/ZoomPage";
 import { BorderlessPage } from "./pages/BorderlessPage";
+import { GamesPage } from "./pages/GamesPage";
 import { OptimizerPage } from "./pages/Optimizer";
 import { CleanPage } from "./pages/CleanPage";
 import { BindsPage } from "./pages/Binds";
@@ -120,6 +121,7 @@ function Shell() {
           {page === "crosshair" && <CrosshairPage />}
           {page === "zoom" && info.platform === "windows" && <ZoomPage />}
           {page === "borderless" && info.platform === "windows" && <BorderlessPage />}
+          {page === "games" && info.platform === "windows" && <GamesPage />}
           {page === "optimizer" && info.optimizer && <OptimizerPage />}
           {page === "clean" && info.platform === "windows" && <CleanPage />}
           {page === "binds" && <BindsPage />}

@@ -1,11 +1,15 @@
 //! What macOS and Linux share: input through polling, overlay windows through Tauri, and the
-//! Windows-only features (colour matrix, zoom, optimizer, borderless windows, cleaning) as empty stand-ins.
+//! Windows-only features (colour matrix, zoom, optimizer, borderless windows, cleaning, game
+//! profiles, Potato Mode, the FPS counter) as empty stand-ins.
 
 pub mod borderless;
 pub mod cleaner;
+pub mod fps;
+pub mod games;
 pub mod hooks;
 pub mod mag;
 pub mod optimizer;
+pub mod potato;
 pub mod window;
 
 /// Opens a folder in the file manager.

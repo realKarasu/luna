@@ -27,6 +27,8 @@ export interface Binds {
   color: (Bind | null)[];
   wheel: Bind | null;
   borderless: Bind | null;
+  fps: Bind | null;
+  potato: Bind | null;
 }
 
 /** Where a borderless window goes. Every mode but "fill" is centred. */
@@ -54,6 +56,59 @@ export interface WindowInfo {
   height: number;
   borderless: boolean;
   framed: boolean;
+}
+
+export interface DisplayMode {
+  width: number;
+  height: number;
+  hz: number;
+}
+
+/** What Luna changes while one game runs. Empty strings mean leave it as it is. */
+export interface GameProfile {
+  exe: string;
+  name: string;
+  enabled: boolean;
+  /** Monitor id for the gamma preset and the screen mode, empty = the selected screen. */
+  monitor: string;
+  gamma: string;
+  color: string;
+  /** "", "off", "on", or "slot0" to "slot7". */
+  crosshair: string;
+  mode: DisplayMode | null;
+  potato: boolean;
+}
+
+export type FpsCorner = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
+
+export interface FpsSettings {
+  enabled: boolean;
+  corner: FpsCorner;
+  /** Monitor id, empty = primary. */
+  monitor: string;
+}
+
+export interface PotatoStatus {
+  on: boolean;
+  manual: boolean;
+  game: string | null;
+  tweaks: string[];
+  slowed: number;
+  boosted: string | null;
+}
+
+export interface FpsReading {
+  state: "running" | "needsAdmin" | "error";
+  fps: number;
+  ms: number;
+  low: number;
+  exe: string;
+}
+
+export interface GamesStatus {
+  active: { exe: string; name: string } | null;
+  potato: PotatoStatus;
+  fps: FpsReading | null;
 }
 
 export interface GammaPreset {
@@ -127,6 +182,8 @@ export interface Settings {
   holo: { mode: "off" | "greenTrueBlack" | "redBlackHolo"; strength: number };
   zoom: { factor: number; monitor: string };
   borderless: { fit: Fit; games: BorderlessGame[] };
+  games: GameProfile[];
+  fps: FpsSettings;
   binds: Binds;
   colorKeys: string[];
   wheelPresets: string[];
@@ -229,4 +286,4 @@ export interface CleanResult {
   skipped: number;
 }
 
-export type Page = "display" | "presets" | "crosshair" | "zoom" | "borderless" | "optimizer" | "clean" | "binds" | "theme" | "settings";
+export type Page = "display" | "presets" | "crosshair" | "zoom" | "borderless" | "games" | "optimizer" | "clean" | "binds" | "theme" | "settings";

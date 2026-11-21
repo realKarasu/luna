@@ -4,11 +4,14 @@ pub mod adl;
 pub mod borderless;
 pub mod cleaner;
 pub mod display;
+pub mod fps;
+pub mod games;
 pub mod gpu;
 pub mod hooks;
 pub mod mag;
 pub mod nvapi;
 pub mod optimizer;
+pub mod potato;
 pub mod vib;
 pub mod window;
 

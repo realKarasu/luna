@@ -11,6 +11,7 @@ pub mod vibrance;
 
 mod engine;
 mod fit;
+mod games;
 mod input;
 mod screens;
 mod sweep;
@@ -35,7 +36,8 @@ use linux as plat;
 mod app {
     use crate::engine::{self, engine, Engine, EngineMsg, UiMsg};
     use crate::fit::WindowInfo;
-    use crate::settings::{self, Fit, Settings};
+    use crate::games::GamesStatus;
+    use crate::settings::{self, DisplayMode, Fit, Settings};
     use crate::sharecode::{self, SharePayload};
     use crate::update::{self, UpdateStatus};
     use crate::plat::{self, display::MonitorInfo, hooks, optimizer, window::Overlay};
@@ -191,6 +193,21 @@ mod app {
     async fn borderless_restore(id: i64) -> Result<Vec<WindowInfo>, String> {
         plat::borderless::restore(id)?;
         Ok(plat::borderless::list())
+    }
+
+    #[tauri::command]
+    async fn display_modes(monitor: String) -> Vec<DisplayMode> {
+        plat::games::modes(&monitor)
+    }
+
+    #[tauri::command]
+    async fn games_status() -> GamesStatus {
+        crate::games::status()
+    }
+
+    #[tauri::command]
+    async fn potato_set(on: bool) -> Result<GamesStatus, String> {
+        crate::games::set_potato(on)
     }
 
     #[tauri::command]
@@ -373,6 +390,9 @@ mod app {
         std::panic::set_hook(Box::new(move |info| {
             engine::restore_from_file();
             engine::restore_vibrance_after_panic();
+            plat::games::restore_all_modes();
+            plat::potato::stop_after_panic();
+            plat::fps::stop();
             default_hook(info);
         }));
 
@@ -401,6 +421,9 @@ mod app {
                 borderless_windows,
                 borderless_apply,
                 borderless_restore,
+                display_modes,
+                games_status,
+                potato_set,
                 share_encode,
                 share_decode,
                 set_autostart,
@@ -419,6 +442,8 @@ mod app {
 
                 let settings = settings::load();
                 let start_hidden = autostarted && settings.app.start_minimized;
+                // Potato Mode left on by a run that did not quit cleanly goes off first.
+                plat::potato::recover();
                 Engine::start(handle.clone(), ui_tx, settings);
                 plat::borderless::watch(|| {
                     let e = engine();
@@ -427,7 +452,9 @@ mod app {
 
                 let crosshair = overlay(&handle, "crosshair", "crosshair.html", engine::CROSSHAIR_SIZE as f64);
                 let wheel = overlay(&handle, "wheel", "wheel.html", engine::WHEEL_SIZE as f64);
-                engine().set_overlay_windows(crosshair, wheel);
+                let fps = overlay(&handle, "fps", "fps.html", engine::FPS_WIDTH as f64);
+                engine().set_overlay_windows(crosshair, wheel, fps);
+                crate::games::start(handle.clone());
 
                 // Engine thread: hook events, tray actions and a one-second tick.
                 let (tx, rx) = channel::<EngineMsg>();

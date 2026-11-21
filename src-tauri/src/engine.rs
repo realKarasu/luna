@@ -8,16 +8,17 @@
 //! (window calls are asynchronous, tray updates go through a channel).
 
 use crate::color::{self, ColorParams, Holo};
+use crate::games::ActiveGame;
 use crate::gamma::{self, Ramp, Tone};
-use crate::settings::{self, Settings};
+use crate::settings::{self, Crosshair, DisplayMode, GameProfile, Settings};
 use crate::input::HookEvent;
 use crate::plat::display::{self, MonitorInfo};
 use crate::plat::vib::Drivers;
 use crate::plat::window::{self, Overlay};
-use crate::plat::{borderless, hooks, mag};
+use crate::plat::{borderless, fps, games as plat_games, hooks, mag, potato};
 use crate::vibrance::{self, VibranceBackend};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 use std::sync::mpsc::Sender;
 use std::sync::{Mutex, MutexGuard, OnceLock, TryLockError};
@@ -25,6 +26,9 @@ use tauri::{AppHandle, Emitter};
 
 pub const CROSSHAIR_SIZE: i32 = 256;
 pub const WHEEL_SIZE: i32 = 560;
+/// FPS counter size on a 1080p screen, larger on bigger ones.
+pub const FPS_WIDTH: i32 = 200;
+pub const FPS_HEIGHT: i32 = 76;
 
 static ENGINE: OnceLock<Mutex<Engine>> = OnceLock::new();
 
@@ -97,6 +101,42 @@ impl VibSlot {
 
 fn restore_path() -> std::path::PathBuf {
     settings::data_dir().join("restore.json")
+}
+
+/// What a game profile changed, to put back when the game closes.
+#[derive(Clone, Default, Serialize, Deserialize)]
+#[serde(default)]
+struct Look {
+    tuning_on: bool,
+    /// Monitor, its tone and its active gamma preset before the game.
+    gamma: Option<(String, Option<Tone>, Option<String>)>,
+    /// Colour and active colour preset before the game.
+    color: Option<(ColorParams, String)>,
+    /// Crosshair shown, and its design, before the game.
+    crosshair: Option<(bool, Crosshair)>,
+}
+
+/// The game whose profile is on. Written to game-look.json so a crash is undone at the next start.
+#[derive(Clone, Serialize, Deserialize)]
+struct GameRun {
+    exe: String,
+    name: String,
+    monitor: String,
+    /// The profile changed the screen mode.
+    mode: bool,
+    potato: bool,
+    look: Look,
+}
+
+fn game_path() -> std::path::PathBuf {
+    settings::data_dir().join("game-look.json")
+}
+
+/// What the games thread does after a look at the running programs.
+pub enum GameStep {
+    Started { exe: String, monitor: String, mode: Option<DisplayMode>, potato: bool },
+    Ended { monitor: String, mode: bool, potato: bool },
+    Same,
 }
 
 fn ramp_to_vec(r: &Ramp) -> Vec<Vec<u16>> {
@@ -177,6 +217,8 @@ pub struct Engine {
     ui: Sender<UiMsg>,
     crosshair_win: Option<Overlay>,
     wheel_win: Option<Overlay>,
+    fps_win: Option<Overlay>,
+    game: Option<GameRun>,
     dirty: bool,
     shut_down: bool,
     ticks: u64,
@@ -223,6 +265,8 @@ impl Engine {
             ui,
             crosshair_win: None,
             wheel_win: None,
+            fps_win: None,
+            game: None,
             dirty: false,
             shut_down: false,
             ticks: 0,
@@ -241,6 +285,17 @@ impl Engine {
             }
         }
         e.write_restore_file();
+        // A game was running when the last run stopped: its look and screen mode go back.
+        let left: Option<GameRun> =
+            std::fs::read_to_string(game_path()).ok().and_then(|t| serde_json::from_str(&t).ok());
+        if let Some(run) = left {
+            e.put_back_look(&run.look);
+            if run.mode {
+                plat_games::reset_mode(&run.monitor);
+            }
+            e.dirty = true;
+        }
+        let _ = std::fs::remove_file(game_path());
         e.fix_selection();
         e.apply_all();
         let _ = ENGINE.set(Mutex::new(e));
@@ -326,10 +381,12 @@ impl Engine {
         let _ = self.app.emit("monitors-changed", &self.monitors);
     }
 
-    pub fn set_overlay_windows(&mut self, crosshair: Option<Overlay>, wheel: Option<Overlay>) {
+    pub fn set_overlay_windows(&mut self, crosshair: Option<Overlay>, wheel: Option<Overlay>, fps: Option<Overlay>) {
         self.crosshair_win = crosshair;
         self.wheel_win = wheel;
+        self.fps_win = fps;
         self.apply_crosshair();
+        self.apply_fps();
     }
 
     /// At least one monitor gets its vibrance from the graphics driver.
@@ -451,6 +508,20 @@ impl Engine {
         let _ = self.app.emit_to("crosshair", "crosshair", &c.current);
     }
 
+    /// The FPS counter in its corner, and the event tracing behind it on or off.
+    fn apply_fps(&self) {
+        let f = &self.settings.fps;
+        fps::set_enabled(f.enabled);
+        let Some(win) = &self.fps_win else { return };
+        match self.monitor_or_primary(&f.monitor) {
+            Some(m) if f.enabled => {
+                let (x, y, w, h) = fps_rect(&m, &f.corner);
+                win.place(x, y, w, h, true);
+            }
+            _ => win.place(0, 0, 0, 0, false),
+        }
+    }
+
     fn notify_tray(&self) {
         let _ = self.ui.send(UiMsg::Tray { tuning: self.settings.tuning_on, crosshair: self.settings.crosshair.enabled });
     }
@@ -463,6 +534,7 @@ impl Engine {
         self.apply_color();
         self.apply_zoom();
         self.apply_crosshair();
+        self.apply_fps();
         self.notify_tray();
     }
 
@@ -525,6 +597,114 @@ impl Engine {
         }
         self.settings.tuning_on = true;
         self.changed_here();
+    }
+
+    // ---------------- game profiles ----------------
+
+    pub fn active_game(&self) -> Option<ActiveGame> {
+        self.game.as_ref().map(|g| ActiveGame { exe: g.exe.clone(), name: g.name.clone() })
+    }
+
+    /// Follows the running programs: puts a profile's look on when its game starts, and
+    /// the previous look back when it closes or its profile is turned off or removed.
+    /// The screen mode and Potato Mode are left to the caller, outside the lock.
+    pub fn game_step(&mut self, running: &HashSet<String>) -> GameStep {
+        if self.shut_down {
+            return GameStep::Same;
+        }
+        if let Some(run) = self.game.take() {
+            let still = running.contains(&run.exe)
+                && self.settings.games.iter().any(|g| g.enabled && g.exe.to_lowercase() == run.exe);
+            if still {
+                self.game = Some(run);
+                return GameStep::Same;
+            }
+            self.put_back_look(&run.look);
+            let _ = std::fs::remove_file(game_path());
+            self.changed_here();
+            return GameStep::Ended { monitor: run.monitor, mode: run.mode, potato: run.potato };
+        }
+        let Some(p) = self
+            .settings
+            .games
+            .iter()
+            .find(|g| g.enabled && !g.exe.is_empty() && running.contains(&g.exe.to_lowercase()))
+            .cloned()
+        else {
+            return GameStep::Same;
+        };
+        let wanted = if p.monitor.is_empty() { self.settings.selected_monitor.clone() } else { p.monitor.clone() };
+        let monitor = self.monitor_or_primary(&wanted).map(|m| m.id).unwrap_or_default();
+        let look = self.put_on_look(&p, &monitor);
+        let exe = p.exe.to_lowercase();
+        let name = if p.name.trim().is_empty() { p.exe.clone() } else { p.name.clone() };
+        let run = GameRun { exe: exe.clone(), name, monitor: monitor.clone(), mode: p.mode.is_some(), potato: p.potato, look };
+        let _ = settings::write_json_atomic(&game_path(), &run);
+        self.game = Some(run);
+        self.changed_here();
+        GameStep::Started { exe, monitor, mode: p.mode, potato: p.potato }
+    }
+
+    /// Applies a profile's gamma, colour and crosshair, and returns what was there before.
+    fn put_on_look(&mut self, p: &GameProfile, mon: &str) -> Look {
+        let s = &mut self.settings;
+        let mut look = Look { tuning_on: s.tuning_on, ..Default::default() };
+        if let Some(preset) = s.gamma_presets.iter().find(|g| g.id == p.gamma).cloned() {
+            look.gamma = Some((mon.to_string(), s.tones.get(mon).copied(), s.active_gamma.get(mon).cloned()));
+            s.tones.insert(mon.to_string(), preset.tone);
+            s.active_gamma.insert(mon.to_string(), preset.id);
+        }
+        if let Some(preset) = s.color_presets.iter().find(|c| c.id == p.color).cloned() {
+            look.color = Some((s.color, s.active_color.clone()));
+            s.color = preset.color;
+            s.active_color = preset.id;
+        }
+        if look.gamma.is_some() || look.color.is_some() {
+            s.tuning_on = true;
+        }
+        let c = &mut s.crosshair;
+        let want = match p.crosshair.as_str() {
+            "off" => Some((false, None)),
+            "on" => Some((true, None)),
+            other => other
+                .strip_prefix("slot")
+                .and_then(|n| n.parse::<usize>().ok())
+                .and_then(|i| c.slots.get(i).cloned().flatten())
+                .map(|design| (true, Some(design))),
+        };
+        if let Some((on, design)) = want {
+            look.crosshair = Some((c.enabled, c.current.clone()));
+            c.enabled = on;
+            if let Some(d) = design {
+                c.current = d;
+            }
+        }
+        look
+    }
+
+    fn put_back_look(&mut self, look: &Look) {
+        let s = &mut self.settings;
+        if let Some((mon, tone, active)) = &look.gamma {
+            match tone {
+                Some(t) => s.tones.insert(mon.clone(), *t),
+                None => s.tones.remove(mon),
+            };
+            match active {
+                Some(a) => s.active_gamma.insert(mon.clone(), a.clone()),
+                None => s.active_gamma.remove(mon),
+            };
+        }
+        if let Some((color, active)) = &look.color {
+            s.color = *color;
+            s.active_color = active.clone();
+        }
+        if look.gamma.is_some() || look.color.is_some() {
+            s.tuning_on = look.tuning_on;
+        }
+        if let Some((on, design)) = &look.crosshair {
+            s.crosshair.enabled = *on;
+            s.crosshair.current = design.clone();
+        }
     }
 
     // ---------------- input ----------------
@@ -597,6 +777,25 @@ impl Engine {
                 }
                 if Self::bind_is(&b.wheel, vk) && self.wheel.is_none() {
                     self.open_wheel();
+                }
+                if Self::bind_is(&b.fps, vk) {
+                    self.settings.fps.enabled = !self.settings.fps.enabled;
+                    self.changed_here();
+                }
+                if Self::bind_is(&b.potato, vk) {
+                    // Turning Windows settings on and off takes a moment: not under the lock.
+                    let app = self.app.clone();
+                    std::thread::spawn(move || {
+                        let on = !potato::status().manual;
+                        match crate::games::set_potato(on) {
+                            Ok(status) => {
+                                let _ = app.emit("game-changed", status);
+                            }
+                            Err(err) => {
+                                let _ = app.emit("game-error", err);
+                            }
+                        }
+                    });
                 }
                 if Self::bind_is(&b.borderless, vk) {
                     // Changing another program's window waits for it to answer: not under the lock.
@@ -752,6 +951,13 @@ impl Engine {
             }
         }
         self.restore_vibrance();
+        if let Some(run) = self.game.take() {
+            self.put_back_look(&run.look);
+        }
+        let _ = std::fs::remove_file(game_path());
+        plat_games::restore_all_modes();
+        potato::stop();
+        fps::stop();
         // Releases the backends, then the driver libraries.
         self.vib.clear();
         self.drivers.release();
@@ -759,6 +965,17 @@ impl Engine {
         let _ = settings::save(&self.settings);
         let _ = std::fs::remove_file(restore_path());
     }
+}
+
+/// Where the FPS counter sits on a screen, in physical pixels.
+pub fn fps_rect(m: &MonitorInfo, corner: &str) -> (i32, i32, i32, i32) {
+    let scale = (m.height as f64 / 1080.0).max(1.0);
+    let w = (FPS_WIDTH as f64 * scale).round() as i32;
+    let h = (FPS_HEIGHT as f64 * scale).round() as i32;
+    let pad = (16.0 * scale).round() as i32;
+    let x = if corner.ends_with("Right") { m.x + m.width - w - pad } else { m.x + pad };
+    let y = if corner.starts_with("bottom") { m.y + m.height - h - pad } else { m.y + pad };
+    (x, y, w, h)
 }
 
 /// Which wheel slice the pointer points at: item 0 at the top, clockwise.

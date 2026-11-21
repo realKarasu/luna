@@ -1,4 +1,4 @@
-import type { ColorPreset, Crosshair, CrosshairDesign, GammaPreset, Settings, Tone } from "../types";
+import type { ColorPreset, Crosshair, CrosshairDesign, GameProfile, GammaPreset, Settings, Tone } from "../types";
 
 const tone = (gamma: number, brightness: number, contrast: number, red = 100, green = 100, blue = 100): Tone => ({
   gamma,
@@ -96,7 +96,9 @@ export function defaultSettings(): Settings {
     holo: { mode: "off", strength: 85 },
     zoom: { factor: 2.5, monitor: "" },
     borderless: { fit: { mode: "stay", monitor: "", width: 1920, height: 1080 }, games: [] },
-    binds: { zoom: null, nvg: null, tuning: null, color: [null, null, null, null], wheel: { vk: 0x76, label: "F7" }, borderless: null },
+    binds: { zoom: null, nvg: null, tuning: null, color: [null, null, null, null], wheel: { vk: 0x76, label: "F7" }, borderless: null, fps: null, potato: null },
+    games: [],
+    fps: { enabled: false, corner: "topLeft", monitor: "" },
     colorKeys: ["", "", "", ""],
     wheelPresets: [],
     gammaPresets: [],
@@ -116,6 +118,18 @@ export function defaultSettings(): Settings {
 }
 
 /** Fills in anything missing (first run, older files) and seeds the built-in presets once. */
+export const DEFAULT_PROFILE: GameProfile = {
+  exe: "",
+  name: "",
+  enabled: true,
+  monitor: "",
+  gamma: "",
+  color: "",
+  crosshair: "",
+  mode: null,
+  potato: false,
+};
+
 export function normalize(s: Settings): Settings {
   const d = defaultSettings();
   const out: Settings = {
@@ -128,6 +142,8 @@ export function normalize(s: Settings): Settings {
       fit: { ...d.borderless.fit, ...s.borderless?.fit },
       games: Array.isArray(s.borderless?.games) ? s.borderless.games : [],
     },
+    games: Array.isArray(s.games) ? s.games.map((g) => ({ ...DEFAULT_PROFILE, ...g })) : [],
+    fps: { ...d.fps, ...s.fps },
     binds: { ...d.binds, ...s.binds },
     crosshair: { ...d.crosshair, ...s.crosshair, current: { ...DEFAULT_CROSSHAIR, ...s.crosshair?.current } },
     theme: { ...d.theme, ...s.theme },

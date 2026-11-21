@@ -17,6 +17,7 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
         crosshair: resolve(__dirname, "crosshair.html"),
         wheel: resolve(__dirname, "wheel.html"),
+        fps: resolve(__dirname, "fps.html"),
         security: resolve(__dirname, "security.html"),
       },
     },

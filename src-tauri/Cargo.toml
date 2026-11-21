@@ -1,11 +1,11 @@
 [package]
 name = "luna"
-version = "0.6.0"
+version = "0.7.0"
 description = "Luna: per-screen display tuning, crosshair overlay and gaming tweaks for Windows, macOS and Linux"
 authors = ["Luna contributors"]
 license = "MIT"
 edition = "2021"
-rust-version = "1.77"
+rust-version = "1.80"
 
 [lib]
 name = "luna_lib"
@@ -42,6 +42,10 @@ windows = { version = "0.62", features = [
   "Win32_System_Threading",
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_UI_Shell",
+  "Win32_System_Diagnostics_Etw",
+  "Win32_System_Time",
+  "Win32_System_Performance",
+  "Win32_System_RemoteDesktop",
 ] }
 
 [target."cfg(not(windows))".dependencies]

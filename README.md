@@ -43,6 +43,8 @@ Once installed, Luna keeps itself up to date: new versions are downloaded and ch
 - **Crosshair overlay.** 10 designs, any colour and size, on top of any game, on the screen you choose.
 - **Night vision and zoom.** Hold a key for a green or blue night vision look, or to magnify the middle of the screen.
 - **Borderless window** (Windows). Takes the frame off a game in windowed mode, keeping its size or filling the screen, by key or by itself for the games you pick.
+- **Game profiles** (Windows). Pick a gamma and colour preset, a crosshair, a resolution and refresh rate for each game: Luna sets them when the game starts and puts everything back when it closes.
+- **FPS counter and Potato Mode** (Windows). A small frame counter in a corner of the screen, and one switch that gives the game everything a slow PC has.
 - **Look wheel.** Hold a key, point at a preset, let go: the look changes instantly.
 - **Optimizer** (Windows). Ten common gaming tweaks in one place, each one with an undo.
 - **Clean** (Windows). Finds the caches, temporary files, old logs and crash reports that pile up on a PC and deletes the ones you tick.
@@ -112,6 +114,7 @@ Luna is not signed with a paid certificate, so SmartScreen warns about it the fi
 | Sight colours (True Black, Red Black Holo) | ✓ | | |
 | Ultra Zoom | ✓ | | |
 | Borderless window | ✓ | | |
+| Game profiles, FPS counter, Potato Mode | ✓ | | |
 | Optimizer | ✓ | | |
 | Clean | ✓ | | |
 | Automatic updates | ✓ | ✓ | ✓ (AppImage) |
@@ -156,7 +159,10 @@ Only to check this repository for a new version, which you can turn off in Setti
 - **Ultra Zoom** (Windows): hold a key or mouse button to magnify the middle of a chosen screen (1.5x to 8x).
 - **Rust profile**: **Green NVG** and **Blue NVG** (gamma 3.00 with a tint while a bind is held), plus **Green True Black** and **Red Black Holo** on Windows, a colour matrix that pushes a sight's colour toward black.
 - **Borderless** (Windows): pick an open window and click Make borderless, or press your key in game. By default the game keeps its size and place; it can also fill the screen, sit centred at 16:9, 21:9 or 4:3, or take a custom size. Remember a game and Luna does it by itself each time it opens.
-- **Binds**: keyboard keys or mouse buttons for Zoom, Borderless, NVG, Tuning on/off, four colour keys and the look wheel. Click a key box and press the key to record it.
+- **Game profiles** (Windows): add a game from the open programs or by its program name. While it runs, Luna applies its gamma preset, colour preset, crosshair (hidden, shown, or a saved slot), screen resolution and refresh rate, Potato Mode and Borderless. Everything goes back when it closes, when Luna quits, and at the next start after a crash. Profiles start about two seconds after the game.
+- **FPS counter** (Windows): frames per second, frame time and 1% low of the game in front, in the corner and on the screen you choose. It reads Windows' own frame events (Direct3D 9 to 12), so it needs Luna to run as administrator; Vulkan and OpenGL games are not counted, and it cannot show over exclusive full screen.
+- **Potato Mode** (Windows): the game in front gets high priority, other programs in your session slow down with Windows' efficiency mode, and the power plan, Game Mode, background recording, transparency and animations switches go on if they were off. Voice chat, streaming, music and system programs are left alone. By switch, by key, or per game profile, and undone when it stops.
+- **Binds**: keyboard keys or mouse buttons for Zoom, Borderless, FPS counter, Potato Mode, NVG, Tuning on/off, four colour keys and the look wheel. Click a key box and press the key to record it.
 - **Look wheel**: hold F7 (changeable), point with the mouse at one of up to 8 presets, release to apply.
 
 ### Crosshair overlay
