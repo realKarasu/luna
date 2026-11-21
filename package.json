@@ -1,7 +1,7 @@
 {
   "name": "luna",
   "private": true,
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Luna: per-screen display tuning, crosshair overlay and Windows gaming tweaks",
   "license": "MIT",
   "type": "module",
