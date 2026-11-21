@@ -146,7 +146,7 @@ impl Default for CrosshairSettings {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Theme {
-    /// "sky" or "custom".
+    /// "sky" (crescent moon), "nebula" or "custom".
     pub background: String,
     pub accent: String,
     /// 0 to 100.

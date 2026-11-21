@@ -1,4 +1,10 @@
 import { useEffect, useRef } from "react";
+import crescent from "../assets/sky-crescent.jpg";
+import nebula from "../assets/sky-nebula.jpg";
+
+/** The painted skies Nebula can show, by the `theme.background` value that picks them. */
+export const SKY_ART = { sky: crescent, nebula } as const;
+export type SkyArt = keyof typeof SKY_ART;
 
 interface Star {
   x: number;
@@ -6,21 +12,14 @@ interface Star {
   r: number;
   phase: number;
   speed: number;
-  tint: number;
 }
 
-function hexToRgb(hex: string): [number, number, number] {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return [168, 109, 255];
-  const n = parseInt(m[1], 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
-
-/** Animated night sky with a crescent moon, drawn for Luna. */
-export function SkyCanvas({ accent, effect }: { accent: string; effect: number }) {
+/**
+ * Night sky behind the Nebula skin: a painted picture that drifts very slowly,
+ * tinted by the accent, with a thin layer of twinkling stars and the odd shooting star.
+ */
+export function SkyCanvas({ art }: { art: SkyArt }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const opts = useRef({ accent, effect });
-  opts.current = { accent, effect };
 
   useEffect(() => {
     const c = canvas.current!;
@@ -40,95 +39,44 @@ export function SkyCanvas({ accent, effect }: { accent: string; effect: number }
       c.width = Math.max(1, Math.round(w * dpr));
       c.height = Math.max(1, Math.round(h * dpr));
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.round((w * h) / 5200);
+      // The picture already holds the dense star field; these only add a little life.
+      const count = Math.round((w * h) / 26000);
       let seed = 7;
       const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
       stars = Array.from({ length: count }, () => ({
         x: rnd() * w,
-        y: rnd() * h,
-        r: rnd() < 0.08 ? 1.1 + rnd() * 0.9 : 0.35 + rnd() * 0.7,
+        y: rnd() * h * 0.8,
+        r: rnd() < 0.15 ? 1 + rnd() * 0.6 : 0.4 + rnd() * 0.5,
         phase: rnd() * Math.PI * 2,
-        speed: 0.4 + rnd() * 1.4,
-        tint: rnd(),
+        speed: 0.3 + rnd() * 1.1,
       }));
-    };
-
-    const drawMoon = (t: number) => {
-      const mx = w * 0.82;
-      const my = h * 0.2 + Math.sin(t * 0.00005) * 4;
-      const r = Math.max(34, Math.min(w, h) * 0.075);
-      const [ar, ag, ab] = hexToRgb(opts.current.accent);
-      const glow = 0.25 + (opts.current.effect / 100) * 0.35;
-      const halo = ctx.createRadialGradient(mx, my, r * 0.6, mx, my, r * 4.2);
-      halo.addColorStop(0, `rgba(${ar},${ag},${ab},${glow})`);
-      halo.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = halo;
-      ctx.beginPath();
-      ctx.arc(mx, my, r * 4.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(mx, my, r, 0, Math.PI * 2);
-      ctx.clip();
-      const body = ctx.createRadialGradient(mx - r * 0.4, my - r * 0.4, r * 0.1, mx, my, r * 1.1);
-      body.addColorStop(0, "#fbf7ff");
-      body.addColorStop(0.6, "#e3d6f7");
-      body.addColorStop(1, "#b9a6d8");
-      ctx.fillStyle = body;
-      ctx.fillRect(mx - r, my - r, r * 2, r * 2);
-      ctx.fillStyle = "rgba(120,100,160,0.18)";
-      for (const [dx, dy, cr] of [
-        [-0.3, -0.1, 0.18],
-        [0.15, 0.35, 0.12],
-        [0.35, -0.3, 0.09],
-        [-0.05, 0.05, 0.07],
-      ]) {
-        ctx.beginPath();
-        ctx.arc(mx + dx * r, my + dy * r, cr * r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // The shadow that makes the crescent.
-      ctx.fillStyle = "rgba(13,10,22,0.93)";
-      ctx.beginPath();
-      ctx.arc(mx + r * 0.55, my - r * 0.25, r * 0.98, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
     };
 
     const frame = (t: number) => {
       raf = requestAnimationFrame(frame);
-      if (document.hidden || t - last < 40) return;
+      if (document.hidden || t - last < 50) return;
       last = t;
       ctx.clearRect(0, 0, w, h);
-      const [ar, ag, ab] = hexToRgb(opts.current.accent);
-      const neb = ctx.createRadialGradient(w * 0.15, h * 0.95, 10, w * 0.15, h * 0.95, Math.max(w, h) * 0.7);
-      neb.addColorStop(0, `rgba(${ar},${ag},${ab},${0.1 + opts.current.effect / 900})`);
-      neb.addColorStop(1, "rgba(0,0,0,0)");
-      ctx.fillStyle = neb;
-      ctx.fillRect(0, 0, w, h);
-
       for (const s of stars) {
-        const tw = reduce ? 0.8 : 0.55 + 0.45 * Math.sin(s.phase + t * 0.001 * s.speed);
-        const x = reduce ? s.x : (s.x + t * 0.002 * s.r) % w;
-        ctx.globalAlpha = tw;
-        ctx.fillStyle = s.tint > 0.85 ? `rgb(${ar},${ag},${ab})` : s.tint > 0.7 ? "#dfe6ff" : "#f5f2ff";
+        const tw = reduce ? 0.6 : Math.max(0, Math.sin(s.phase + t * 0.0009 * s.speed));
+        ctx.globalAlpha = tw * 0.85;
+        ctx.fillStyle = "#f3f0ff";
         ctx.beginPath();
-        ctx.arc(x, s.y, s.r, 0, Math.PI * 2);
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
 
       if (!reduce) {
-        if (!shoot && Math.random() < 0.004) {
+        if (!shoot && Math.random() < 0.002) {
           shoot = { x: Math.random() * w * 0.7, y: Math.random() * h * 0.35, vx: 7 + Math.random() * 4, vy: 2.5 + Math.random() * 2, life: 1 };
         }
         if (shoot) {
           const g = ctx.createLinearGradient(shoot.x, shoot.y, shoot.x - shoot.vx * 10, shoot.y - shoot.vy * 10);
-          g.addColorStop(0, `rgba(255,255,255,${shoot.life})`);
+          g.addColorStop(0, `rgba(255,255,255,${shoot.life * 0.8})`);
           g.addColorStop(1, "rgba(255,255,255,0)");
           ctx.strokeStyle = g;
-          ctx.lineWidth = 1.4;
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
           ctx.moveTo(shoot.x, shoot.y);
           ctx.lineTo(shoot.x - shoot.vx * 10, shoot.y - shoot.vy * 10);
@@ -139,7 +87,6 @@ export function SkyCanvas({ accent, effect }: { accent: string; effect: number }
           if (shoot.life <= 0) shoot = null;
         }
       }
-      drawMoon(t);
     };
 
     resize();
@@ -152,5 +99,11 @@ export function SkyCanvas({ accent, effect }: { accent: string; effect: number }
     };
   }, []);
 
-  return <canvas ref={canvas} className="sky" aria-hidden="true" />;
+  return (
+    <>
+      <div className="sky-art" style={{ backgroundImage: `url(${SKY_ART[art]})` }} aria-hidden="true" />
+      <div className="sky-tint" aria-hidden="true" />
+      <canvas ref={canvas} className="sky" aria-hidden="true" />
+    </>
+  );
 }

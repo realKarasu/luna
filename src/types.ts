@@ -76,7 +76,7 @@ export interface CrosshairSettings {
 }
 
 export interface Theme {
-  background: "sky" | "custom";
+  background: "sky" | "nebula" | "custom";
   accent: string;
   effect: number;
   font: "hanken" | "segoe" | "bahnschrift" | "mono";

@@ -98,10 +98,7 @@ function Shell() {
               style={{ backgroundImage: `url(${background})` }}
             />
           ) : (
-            <SkyCanvas
-              accent={settings.theme.accent}
-              effect={settings.theme.effect}
-            />
+            <SkyCanvas art={settings.theme.background === "nebula" ? "nebula" : "sky"} />
           )}
           <div className="backdrop-shade" />
         </div>

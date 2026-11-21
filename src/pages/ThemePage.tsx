@@ -6,8 +6,14 @@ import { ACCENTS } from "../lib/defaults";
 import { Panel, Row, Segmented, Select, Slider } from "../components/ui";
 import { Icon } from "../components/Icon";
 import { SKINS, skinInfo } from "../lib/skins";
+import { SKY_ART, type SkyArt } from "../components/SkyCanvas";
 
 const MAX_BYTES = 15 * 1024 * 1024;
+
+const SKIES: { id: SkyArt; name: string }[] = [
+  { id: "sky", name: "Crescent" },
+  { id: "nebula", name: "Nebula" },
+];
 
 export function ThemePage({
   background,
@@ -109,17 +115,20 @@ export function ThemePage({
       {nebula && (
         <Panel
           title="Background"
-          subtitle="The animated night sky, or a picture or GIF of your own."
+          subtitle="A painted night sky with a few live stars, or a picture or GIF of your own."
         >
           <div className="bg-choices">
-            <button
-              type="button"
-              className={`bg-choice ${t.background === "sky" ? "active" : ""}`}
-              onClick={() => edit({ background: "sky" })}
-            >
-              <span className="bg-sample sky-sample" />
-              <span>Night sky</span>
-            </button>
+            {SKIES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                className={`bg-choice ${t.background === s.id ? "active" : ""}`}
+                onClick={() => edit({ background: s.id })}
+              >
+                <span className="bg-sample" style={{ backgroundImage: `url(${SKY_ART[s.id]})` }} />
+                <span>{s.name}</span>
+              </button>
+            ))}
             <button
               type="button"
               className={`bg-choice ${t.background === "custom" ? "active" : ""}`}
@@ -204,7 +213,7 @@ export function ThemePage({
           <>
             <div className="row-slider">
               <Slider
-                label="Glass and glow"
+                label="Glass"
                 value={t.effect}
                 min={0}
                 max={100}

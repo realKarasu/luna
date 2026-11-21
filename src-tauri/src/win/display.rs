@@ -29,13 +29,11 @@ fn info_for(hmon: HMONITOR) -> Option<MonitorInfo> {
     let len = info.szDevice.iter().position(|&c| c == 0).unwrap_or(info.szDevice.len());
     let id = String::from_utf16_lossy(&info.szDevice[..len]);
     let r = info.monitorInfo.rcMonitor;
-    let number: String = id.chars().rev().take_while(|c| c.is_ascii_digit()).collect::<Vec<_>>().into_iter().rev().collect();
     let width = r.right - r.left;
     let height = r.bottom - r.top;
-    let label = if number.is_empty() { id.clone() } else { format!("Display {number}") };
     Some(MonitorInfo {
+        label: id.clone(),
         id,
-        label,
         x: r.left,
         y: r.top,
         width,
@@ -62,13 +60,19 @@ pub fn enumerate() -> Vec<MonitorInfo> {
         let _ = EnumDisplayMonitors(None, None, Some(enum_proc), LPARAM(&mut list as *mut _ as isize));
     }
     screens::sort(&mut list);
+    // `\\.\DISPLAY17` only counts how often Windows set up an output since install
+    // (driver updates, replugging), so screens are numbered in the order Luna shows them.
+    for (n, m) in list.iter_mut().enumerate() {
+        m.label = format!("Display {}", n + 1);
+    }
     list
 }
 
 /// The monitor that contains the point (or the nearest one).
 pub fn monitor_at(x: i32, y: i32) -> Option<MonitorInfo> {
     let hmon = unsafe { MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONEAREST) };
-    info_for(hmon)
+    let id = info_for(hmon)?.id;
+    enumerate().into_iter().find(|m| m.id == id)
 }
 
 struct Dc(HDC);
