@@ -137,7 +137,8 @@ for (const f of [setup, `${setup}.sig`, msi]) if (!existsSync(f)) fail(`missing 
 
 if (!resume) {
   run("git", ["add", "-A"]);
-  run("git", ["commit", "-m", `Luna ${version}: ${notes.split("\n")[0]}`]);
+  // The files may already carry this version, leaving nothing to commit.
+  if (out("git", ["status", "--porcelain"])) run("git", ["commit", "-m", `Luna ${version}: ${notes.split("\n")[0]}`]);
   run("git", ["tag", "-a", tag, "-m", `Luna ${version}`]);
   run("git", ["push"]);
   run("git", ["push", "origin", tag]);
