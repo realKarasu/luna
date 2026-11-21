@@ -176,11 +176,13 @@ pub struct AppPrefs {
     pub start_with_windows: bool,
     pub start_minimized: bool,
     pub close_to_tray: bool,
+    /// Checks GitHub for a newer signed version and installs it.
+    pub auto_update: bool,
 }
 
 impl Default for AppPrefs {
     fn default() -> Self {
-        AppPrefs { start_with_windows: false, start_minimized: false, close_to_tray: true }
+        AppPrefs { start_with_windows: false, start_minimized: false, close_to_tray: true, auto_update: true }
     }
 }
 
@@ -310,5 +312,15 @@ mod tests {
         let back: Settings = serde_json::from_str(&serde_json::to_string(&s).unwrap()).unwrap();
         assert_eq!(back.theme.skin, "terrain");
         assert_eq!(back.theme.accent, "#9be37a");
+    }
+
+    #[test]
+    fn auto_update_is_on_for_old_settings_files() {
+        // Files written before 0.3.0 have no autoUpdate key.
+        let s: Settings = serde_json::from_str(r##"{"app": {"closeToTray": false}}"##).unwrap();
+        assert!(s.app.auto_update);
+        assert!(!s.app.close_to_tray);
+        let off: Settings = serde_json::from_str(r##"{"app": {"autoUpdate": false}}"##).unwrap();
+        assert!(!off.app.auto_update);
     }
 }

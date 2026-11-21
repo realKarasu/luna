@@ -2,7 +2,7 @@
 // small demo backend so the interface can still be explored.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppState, Bind, CleanResult, MonitorInfo, Settings, SharePayload, TweakStatus } from "../types";
+import type { AppState, Bind, CleanResult, MonitorInfo, Settings, SharePayload, TweakStatus, UpdateStatus } from "../types";
 import { defaultSettings } from "./defaults";
 import { decodeShare, encodeShare } from "./sharecode";
 
@@ -140,6 +140,15 @@ function demoRecord(): Promise<void> {
 
 // ---------------- the API ----------------
 
+export const IDLE_UPDATE: UpdateStatus = {
+  state: "idle",
+  version: null,
+  notes: null,
+  progress: 0,
+  error: null,
+  checkedAt: null,
+};
+
 export const api = {
   async getState(): Promise<AppState> {
     if (isTauri) return invoke<AppState>("get_state");
@@ -149,9 +158,10 @@ export const api = {
       driverVibrance: true,
       magnifier: true,
       gammaStrength: {},
-      version: "0.2.0",
+      version: "0.3.0",
       dataDir: "%APPDATA%\\Luna",
       autostart: false,
+      update: IDLE_UPDATE,
     };
   },
   async setSettings(s: Settings): Promise<Record<string, number>> {
@@ -227,6 +237,14 @@ export const api = {
   async quit(): Promise<void> {
     if (isTauri) return invoke("quit_app");
   },
+  async updateCheck(): Promise<UpdateStatus> {
+    if (isTauri) return invoke("update_check");
+    return { ...IDLE_UPDATE, state: "latest", checkedAt: Math.floor(Date.now() / 1000) };
+  },
+  async updateInstall(): Promise<void> {
+    if (isTauri) return invoke("update_install");
+  },
+  onUpdateStatus: (cb: (u: UpdateStatus) => void) => on<UpdateStatus>("update-status", cb),
 };
 
 export async function windowAction(action: "minimize" | "maximize" | "close") {

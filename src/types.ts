@@ -106,7 +106,7 @@ export interface Settings {
   presetsSeeded: boolean;
   crosshair: CrosshairSettings;
   theme: Theme;
-  app: { startWithWindows: boolean; startMinimized: boolean; closeToTray: boolean };
+  app: { startWithWindows: boolean; startMinimized: boolean; closeToTray: boolean; autoUpdate: boolean };
 }
 
 export interface MonitorInfo {
@@ -136,6 +136,18 @@ export interface AppState {
   version: string;
   dataDir: string;
   autostart: boolean;
+  update: UpdateStatus;
+}
+
+export interface UpdateStatus {
+  state: "idle" | "checking" | "downloading" | "ready" | "latest" | "error";
+  version: string | null;
+  notes: string | null;
+  /** 0 to 1 while downloading. */
+  progress: number;
+  error: string | null;
+  /** Unix seconds of the last finished check. */
+  checkedAt: number | null;
 }
 
 export interface SharePayload {

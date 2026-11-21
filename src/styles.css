@@ -581,6 +581,25 @@ p {
   background: var(--accent-tint);
 }
 
+button.chip {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.update-chip {
+  margin-right: 8px;
+  padding: 4px 11px;
+}
+
+.update-chip:hover {
+  border-color: var(--accent);
+}
+
+.update-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .pills,
 .preview-pick {
   display: flex;

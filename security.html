@@ -21,8 +21,9 @@
       <h1>Is Luna safe?</h1>
       <p class="lead">
         Yes. Luna is an ordinary Windows program that changes how your screens show colour, using settings Windows and your graphics driver
-        already offer to every app. It never goes inside a game, never reads game memory and never talks to the internet. All of its code is
-        open, so you can read it and build it yourself.
+        already offer to every app. It never goes inside a game and never reads game memory. The only thing it does online is look for a new
+        version of itself on the project's GitHub page, and you can turn that off. All of its code is open, so you can read it and build it
+        yourself.
       </p>
 
       <div class="verdict">
@@ -30,8 +31,8 @@
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 12l5 5 9-10" /></svg>
         </span>
         <div>
-          <strong>Open source, offline, no administrator rights</strong>
-          <p>No injection, no access to other programs' memory, no driver or service, no account and no network connection.</p>
+          <strong>Open source, no account, no administrator rights</strong>
+          <p>No injection, no access to other programs' memory, no driver or service, no account and no statistics. Online only for signed updates.</p>
         </div>
       </div>
 
@@ -65,8 +66,11 @@
           </li>
           <li class="no">
             <span class="mark" aria-hidden="true">&times;</span>
-            <strong>Use the internet</strong>
-            <p>Luna itself makes no network requests: no login, no background updates, no statistics. It works the same with the network unplugged.</p>
+            <strong>Send anything about you</strong>
+            <p>
+              No login, no statistics, no crash reports. The update check only downloads a small file from GitHub; nothing about you, your PC or your
+              settings is sent. Luna works the same with the network unplugged.
+            </p>
           </li>
           <li class="no">
             <span class="mark" aria-hidden="true">&times;</span>
@@ -128,6 +132,16 @@
             <strong>Settings and Start with Windows</strong>
             <p>Plain JSON files in your AppData folder, and one entry in your own startup list, only if you turn it on.</p>
           </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Updates</strong>
+            <p>
+              A few seconds after it starts, then every 6 hours, Luna reads latest.json from the project's latest GitHub release over HTTPS. When it
+              names a newer version, Luna downloads that installer and checks its signature against the key built into Luna, so a file that was
+              changed or did not come from the project is refused. Your screens are put back first, then the installer runs and Luna starts again.
+              Turn off Automatic updates in Settings and Luna only checks when you press Check now.
+            </p>
+          </li>
         </ul>
       </section>
 
@@ -164,7 +178,7 @@ npm run tauri build</pre>
         <pre class="listing">
 Luna, Windows functions in its own code
 Source: src-tauri/src (Rust), one file per feature
-Network: none. Administrator rights: never asked for.
+Network: update check on github.com only (HTTPS). Administrator rights: never asked for.
 
 Used, and why
   SetDeviceGammaRamp           colour curve of each screen (gamma, brightness, contrast, RGB)
@@ -185,10 +199,12 @@ Used, and why
   PowerSetActiveScheme         Optimizer: power plan
   RegSetValueExW               Optimizer tweaks and Start with Windows, your user only
   RegQueryValueExW             reads the old value first so Undo can put it back
+  HTTPS GET (Rust reqwest)     latest.json and the signed installer from github.com, nothing sent
 
 Programs Luna starts
   powercfg.exe                 copies the High performance plan, only if Windows hides it
   explorer.exe                 opens your settings folder, only when you click it
+  Luna_x.y.z_x64-setup.exe     a new version, only after its signature is checked
 
 Never called by Luna's own code
   CreateRemoteThread           start code inside another program
@@ -201,15 +217,13 @@ Never called by Luna's own code
   OpenProcess                  open another program at all
   GetKeyboardState             read the whole keyboard
   RegisterRawInputDevices      capture all raw input
-  URLDownloadToFileW           download a file
-  WinHttpOpen                  talk to a server
   CryptEncrypt                 encrypt files
   AdjustTokenPrivileges        raise its own rights
   CreateServiceW               install a service
   NtLoadDriver                 load a kernel driver
   DeviceIoControl              talk to a driver directly
 
-Result: no injection, no memory access, no network, no driver.
+Result: no injection, no memory access, no driver, nothing sent about you.
         </pre>
       </section>
     </main>

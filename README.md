@@ -1,6 +1,6 @@
 # Luna
 
-Luna is a free, open-source Windows 10/11 (x64) app that tunes each of your screens for PC games, draws a crosshair overlay and applies a set of Windows gaming tweaks. Everything runs locally: no account, no licence key, no payment, no telemetry and no server. It runs without administrator rights.
+Luna is a free, open-source Windows 10/11 (x64) app that tunes each of your screens for PC games, draws a crosshair overlay and applies a set of Windows gaming tweaks. Everything runs locally: no account, no licence key, no payment and no telemetry. The only network use is the update check on this repository's releases, which can be turned off. It runs without administrator rights.
 
 > Luna is an independent project. It is not affiliated with, endorsed by or connected to any other display tuning product or company.
 
@@ -45,6 +45,12 @@ Luna is a free, open-source Windows 10/11 (x64) app that tunes each of your scre
 - Accent colour for every style.
 - Start with Windows, start minimized to the tray, close to tray, and a tray icon with quick toggles.
 
+### Updates
+- Luna checks this repository's latest release a few seconds after it starts, then every 6 hours.
+- A new version is downloaded and its signature is checked against the public key built into the app, so only installers signed by the project are accepted.
+- Found at start: it installs right away and Luna opens again. Found later: it waits and installs when Luna quits, or at once from **Restart to update**, so a game is never cut off.
+- **Automatic updates** can be turned off in Settings; **Check now** still works.
+
 Settings are saved as JSON in `%APPDATA%\Luna`.
 
 ## Building
@@ -66,6 +72,16 @@ cd src-tauri && cargo test        # unit tests: gamma ramps, colour matrices, vi
 npm run tauri dev                 # run in development mode
 ```
 
+### Publishing an update
+
+The release script bumps the version, builds and signs the installers, writes `latest.json` and creates the GitHub release that every installed copy reads:
+
+```sh
+npm run release -- 0.4.0 "What changed, in one or two lines"
+```
+
+It needs the [GitHub CLI](https://cli.github.com/) signed in and the updater private key at `%USERPROFILE%\.tauri\luna-updater.key` (or in `TAURI_SIGNING_PRIVATE_KEY`). That key never goes in the repository; without it no update can be signed.
+
 Opening `dist/index.html` from a plain web server shows the interface in a browser preview mode with a demo backend (nothing on your PC is changed).
 
 ## How it works
@@ -81,6 +97,7 @@ Opening `dist/index.html` from a plain web server shows the interface in a brows
 | Ultra Zoom | `MagSetFullscreenTransform` |
 | Binds and look wheel | Low-level keyboard and mouse hooks on their own thread |
 | Optimizer | Per-user registry values, `powercfg`, `SystemParametersInfo` |
+| Updates | `tauri-plugin-updater`: HTTPS GET of `latest.json`, minisign signature check, NSIS installer in passive mode |
 
 Windows limits how far a gamma ramp may move from neutral for programs without admin rights. When a curve is refused, Luna applies the strongest version Windows accepts and tells you how much of it is active.
 

@@ -1,11 +1,13 @@
 import type { Page } from "../types";
 import { useStore } from "../store";
-import { isTauri, windowAction } from "../lib/backend";
+import { api, errorText, isTauri, windowAction } from "../lib/backend";
 import { vendorLabel, vibranceSummary } from "../lib/gpu";
 import { Icon, MoonLogo } from "./Icon";
 
 export function TitleBar() {
-  const { settings, info } = useStore();
+  const { settings, info, toast } = useStore();
+  const ready = info.update.state === "ready";
+  const restart = () => api.updateInstall().catch((e) => toast(errorText(e), "bad"));
   return (
     <header className="titlebar" data-tauri-drag-region>
       <div className="brand" data-tauri-drag-region>
@@ -22,6 +24,16 @@ export function TitleBar() {
           <span className="dot" />
           {settings.tuningOn ? "Tuning active" : "Tuning paused"}
         </span>
+        {ready && (
+          <button
+            type="button"
+            className="chip accent update-chip"
+            title={`Version ${info.update.version} is downloaded. It also installs by itself when Luna quits.`}
+            onClick={restart}
+          >
+            <Icon name="download" size={13} /> Restart to update
+          </button>
+        )}
         {!isTauri && <span className="chip warn">Browser preview</span>}
         <button type="button" className="win-btn" aria-label="Minimize" onClick={() => windowAction("minimize")}>
           <Icon name="minimize" size={16} />

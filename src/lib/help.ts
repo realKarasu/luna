@@ -12,7 +12,7 @@ export const HELP: HelpItem[] = [
   ],
   [
     "How do I contact you?",
-    "Open an issue on the project's code page with what you did, what you expected and your Windows version. Luna never sends anything by itself, so a report is the only way we hear about a bug or a question.",
+    "Open an issue on the project's code page with what you did, what you expected and your Windows version. Luna sends nothing about you, so a report is the only way we hear about a bug or a question.",
   ],
   [
     "Are crosshair overlays and screen filters allowed in games?",
@@ -40,6 +40,6 @@ export const HELP: HelpItem[] = [
   ],
   [
     "Where are my settings, and are they sent anywhere?",
-    "They are plain JSON files in the Luna folder of your AppData, which you can open from the Settings page. Luna has no account, no server and no statistics: nothing leaves your PC.",
+    "They are plain JSON files in the Luna folder of your AppData, which you can open from the Settings page. Luna has no account and no statistics: your settings never leave your PC. The only thing it fetches online is the update check, which you can turn off in Settings.",
   ],
 ];

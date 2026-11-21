@@ -9,6 +9,8 @@ pub mod vibrance;
 #[cfg(windows)]
 mod engine;
 #[cfg(windows)]
+mod update;
+#[cfg(windows)]
 mod win;
 
 #[cfg(windows)]
@@ -16,6 +18,7 @@ mod app {
     use crate::engine::{self, engine, Engine, EngineMsg, UiMsg};
     use crate::settings::{self, Settings};
     use crate::sharecode::{self, SharePayload};
+    use crate::update::{self, UpdateStatus};
     use crate::win::{self, display::MonitorInfo, hooks, optimizer};
     use serde::Serialize;
     use std::collections::HashMap;
@@ -47,6 +50,7 @@ mod app {
         version: String,
         data_dir: String,
         autostart: bool,
+        update: UpdateStatus,
     }
 
     // ---------------- commands ----------------
@@ -63,6 +67,7 @@ mod app {
             version: app.package_info().version.to_string(),
             data_dir: settings::data_dir().display().to_string(),
             autostart: win::autostart_enabled(),
+            update: update::status(),
         }
     }
 
@@ -175,14 +180,39 @@ mod app {
 
     #[tauri::command]
     async fn quit_app(app: AppHandle) {
+        quit_luna(&app);
+    }
+
+    #[tauri::command]
+    async fn update_status() -> UpdateStatus {
+        update::status()
+    }
+
+    /// Checks now, whatever the auto-update switch says, and downloads what it finds.
+    #[tauri::command]
+    async fn update_check(app: AppHandle) -> UpdateStatus {
+        update::check_and_download(&app).await;
+        update::status()
+    }
+
+    /// Installs the downloaded update and starts Luna again.
+    #[tauri::command]
+    async fn update_install() -> Result<(), String> {
         shutdown();
-        app.exit(0);
+        update::install_now(true)
     }
 
     fn shutdown() {
         if engine::engine_ready() {
             engine().shutdown();
         }
+    }
+
+    /// Every way out of Luna: screens back to normal, then a waiting update is installed.
+    fn quit_luna(app: &AppHandle) {
+        shutdown();
+        update::install_pending_on_quit();
+        app.exit(0);
     }
 
     // ---------------- windows and tray ----------------
@@ -243,10 +273,7 @@ mod app {
                 "tuning" => post(EngineMsg::ToggleTuning),
                 "crosshair" => post(EngineMsg::ToggleCrosshair),
                 "reset" => post(EngineMsg::Reset),
-                "quit" => {
-                    shutdown();
-                    app.exit(0);
-                }
+                "quit" => quit_luna(app),
                 _ => {}
             })
             .on_tray_icon_event(|tray, event| {
@@ -291,6 +318,7 @@ mod app {
 
         let app = tauri::Builder::default()
             .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+            .plugin(tauri_plugin_updater::Builder::new().build())
             .invoke_handler(tauri::generate_handler![
                 get_state,
                 set_settings,
@@ -308,7 +336,10 @@ mod app {
                 get_background,
                 set_background,
                 open_data_dir,
-                quit_app
+                quit_app,
+                update_status,
+                update_check,
+                update_install
             ])
             .setup(move |app| {
                 let handle = app.handle().clone();
@@ -354,6 +385,7 @@ mod app {
                 if !start_hidden {
                     show_main(&handle);
                 }
+                update::start(handle.clone());
                 Ok(())
             })
             .on_window_event(|window, event| {
@@ -366,8 +398,7 @@ mod app {
                         api.prevent_close();
                         let _ = window.hide();
                     } else {
-                        shutdown();
-                        window.app_handle().exit(0);
+                        quit_luna(window.app_handle());
                     }
                 }
             })

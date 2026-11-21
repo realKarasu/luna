@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { AppState, MonitorInfo, Settings } from "./types";
-import { api, errorText } from "./lib/backend";
+import { api, errorText, IDLE_UPDATE } from "./lib/backend";
 import { normalize } from "./lib/defaults";
 
 interface Toast {
@@ -41,9 +41,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     driverVibrance: false,
     magnifier: true,
     gammaStrength: {},
-    version: "0.2.0",
+    version: "0.3.0",
     dataDir: "",
     autostart: false,
+    update: IDLE_UPDATE,
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const latest = useRef(settings);
@@ -121,6 +122,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     const offs = [
       api.onSettingsChanged((s) => replace(s)),
       api.onMonitorsChanged((m) => setMonitors(m)),
+      api.onUpdateStatus((u) => setInfoState((i) => ({ ...i, update: u }))),
     ];
     return () => {
       alive = false;
