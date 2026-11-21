@@ -63,3 +63,27 @@ export const ZOOM_HELP: HelpItem[] = [
     "Ultra Zoom relies on the Windows magnifier. macOS and Linux have no equivalent that Luna can drive the same way, so the page only appears on Windows.",
   ],
 ];
+
+// Shown on the Borderless page.
+export const BORDERLESS_HELP: HelpItem[] = [
+  [
+    "The game still has a frame.",
+    "Set the game to windowed mode in its own video settings first, not full screen. Some games draw their frame again when you change the resolution: Luna takes it off again by itself for remembered games, otherwise press the key again.",
+  ],
+  [
+    "Can the game fill my ultrawide screen?",
+    "By default Luna only takes the frame off and leaves the game where it was. Pick Fill the screen under Size to stretch the window across the whole screen, or 16:9 or 21:9 to centre it in the middle of the screen.",
+  ],
+  [
+    "Nothing happens with one game.",
+    "If the game runs as administrator, Windows does not let other programs change its window. Start Luna as administrator too, or start the game normally. A few anti-cheat systems also lock their window.",
+  ],
+  [
+    "Is it safe with anti-cheat?",
+    "Luna only changes the frame and position of the window through standard Windows calls, the same as moving a window by hand. Nothing is loaded into the game and its files are never touched.",
+  ],
+  [
+    "How do I get the frame back?",
+    "Press the key again, click Restore, or close the game. A window Luna changed stays that way until then, even if you quit Luna.",
+  ],
+];

@@ -10,6 +10,7 @@ pub mod sharecode;
 pub mod vibrance;
 
 mod engine;
+mod fit;
 mod input;
 mod screens;
 mod update;
@@ -32,7 +33,8 @@ use linux as plat;
 
 mod app {
     use crate::engine::{self, engine, Engine, EngineMsg, UiMsg};
-    use crate::settings::{self, Settings};
+    use crate::fit::WindowInfo;
+    use crate::settings::{self, Fit, Settings};
     use crate::sharecode::{self, SharePayload};
     use crate::update::{self, UpdateStatus};
     use crate::plat::{self, display::MonitorInfo, hooks, optimizer, window::Overlay};
@@ -153,6 +155,24 @@ mod app {
     #[tauri::command]
     async fn clean_temp() -> optimizer::CleanResult {
         optimizer::clean_temp()
+    }
+
+    #[tauri::command]
+    async fn borderless_windows() -> Vec<WindowInfo> {
+        plat::borderless::list()
+    }
+
+    #[tauri::command]
+    async fn borderless_apply(id: i64, fit: Fit) -> Result<Vec<WindowInfo>, String> {
+        let monitors = engine().monitors.clone();
+        plat::borderless::apply(id, &fit, &monitors)?;
+        Ok(plat::borderless::list())
+    }
+
+    #[tauri::command]
+    async fn borderless_restore(id: i64) -> Result<Vec<WindowInfo>, String> {
+        plat::borderless::restore(id)?;
+        Ok(plat::borderless::list())
     }
 
     #[tauri::command]
@@ -347,6 +367,9 @@ mod app {
                 optimizer_all,
                 optimizer_undo_all,
                 clean_temp,
+                borderless_windows,
+                borderless_apply,
+                borderless_restore,
                 share_encode,
                 share_decode,
                 set_autostart,
@@ -366,6 +389,10 @@ mod app {
                 let settings = settings::load();
                 let start_hidden = autostarted && settings.app.start_minimized;
                 Engine::start(handle.clone(), ui_tx, settings);
+                plat::borderless::watch(|| {
+                    let e = engine();
+                    Some((e.settings.borderless.clone(), e.monitors.clone()))
+                });
 
                 let crosshair = overlay(&handle, "crosshair", "crosshair.html", engine::CROSSHAIR_SIZE as f64);
                 let wheel = overlay(&handle, "wheel", "wheel.html", engine::WHEEL_SIZE as f64);

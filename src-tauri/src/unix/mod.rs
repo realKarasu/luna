@@ -1,6 +1,7 @@
 //! What macOS and Linux share: input through polling, overlay windows through Tauri, and the
-//! Windows-only features (colour matrix, zoom, optimizer) as empty stand-ins.
+//! Windows-only features (colour matrix, zoom, optimizer, borderless windows) as empty stand-ins.
 
+pub mod borderless;
 pub mod hooks;
 pub mod mag;
 pub mod optimizer;

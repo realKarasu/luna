@@ -5,7 +5,7 @@
 pub mod display;
 pub mod vib;
 
-pub use crate::unix::{hooks, mag, open_dir, optimizer, window};
+pub use crate::unix::{borderless, hooks, mag, open_dir, optimizer, window};
 
 use std::path::PathBuf;
 

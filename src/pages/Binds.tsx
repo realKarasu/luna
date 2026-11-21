@@ -4,7 +4,7 @@ import { Chip, Panel, Select } from "../components/ui";
 import { BindButton, slotId, useBindRecorder, type Slot } from "../components/BindButton";
 
 export function BindsPage() {
-  const { settings, update } = useStore();
+  const { settings, info, update } = useStore();
   const rec = useBindRecorder();
 
   const presetOptions = [
@@ -43,6 +43,7 @@ export function BindsPage() {
           {line({ key: "nvg" }, "Night vision", "Hold for green or blue night vision.", settings.profile !== "rust" ? <Chip tone="warn">Rust profile only</Chip> : null)}
           {line({ key: "tuning" }, "Tuning on/off", "Press to switch every adjustment on or off.")}
           {line({ key: "wheel" }, "Look wheel", "Hold, point the mouse at a preset, release to apply it.")}
+          {info.platform === "windows" && line({ key: "borderless" }, "Borderless window", "Press in game to take the frame off the window in front. Press again to put it back.")}
         </div>
       </Panel>
 

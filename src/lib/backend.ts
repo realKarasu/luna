@@ -2,7 +2,7 @@
 // small demo backend so the interface can still be explored.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppState, Bind, CleanResult, MonitorInfo, Settings, SharePayload, TweakStatus, UpdateStatus } from "../types";
+import type { AppState, Bind, CleanResult, Fit, MonitorInfo, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
 import { defaultSettings } from "./defaults";
 import { decodeShare, encodeShare } from "./sharecode";
 
@@ -58,6 +58,15 @@ const DEMO_MONITORS: MonitorInfo[] = [
   },
 ];
 const demoTweaks: Record<string, boolean> = {};
+let demoWindows: WindowInfo[] = [
+  { id: 101, title: "Ashfall Frontier", exe: "ashfall.exe", width: 2560, height: 1440, borderless: false, framed: true },
+  { id: 102, title: "Voice chat", exe: "voicechat.exe", width: 1280, height: 760, borderless: false, framed: true },
+  { id: 103, title: "notes.txt - Notepad", exe: "notepad.exe", width: 900, height: 620, borderless: false, framed: true },
+];
+const demoSet = (id: number, borderless: boolean) => {
+  demoWindows = demoWindows.map((w) => (w.id === id ? { ...w, borderless, framed: !borderless } : w));
+  return demoWindows;
+};
 let demoBackground: string | null = null;
 
 function demoLoad(): Settings {
@@ -214,6 +223,20 @@ export const api = {
     if (isTauri) return invoke("clean_temp");
     return { freedBytes: 0, files: 0, skipped: 0 };
   },
+  async borderlessWindows(): Promise<WindowInfo[]> {
+    if (isTauri) return invoke("borderless_windows");
+    return demoWindows;
+  },
+  async borderlessApply(id: number, fit: Fit): Promise<WindowInfo[]> {
+    if (isTauri) return invoke("borderless_apply", { id, fit });
+    return demoSet(id, true);
+  },
+  async borderlessRestore(id: number): Promise<WindowInfo[]> {
+    if (isTauri) return invoke("borderless_restore", { id });
+    return demoSet(id, false);
+  },
+  /** The borderless key was used in game; carries the reason when it did nothing. */
+  onBorderlessChanged: (cb: (error: string | null) => void) => on<string | null>("borderless-changed", cb),
   async shareEncode(p: SharePayload): Promise<string> {
     if (isTauri) return invoke("share_encode", { payload: p });
     return encodeShare(p);

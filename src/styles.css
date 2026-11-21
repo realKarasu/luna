@@ -1885,3 +1885,76 @@ a.btn {
     transition: none !important;
   }
 }
+
+/* ---------------- borderless ---------------- */
+
+.fit-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.fit-screen {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--line-2);
+  background: rgba(0, 0, 0, 0.32);
+  overflow: hidden;
+}
+
+.fit-game {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--accent-tint);
+  border: 1px solid var(--accent);
+  transition: left 0.24s var(--ease), top 0.24s var(--ease), width 0.24s var(--ease), height 0.24s var(--ease);
+}
+
+.fit-game span {
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.fit-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fit-size .input {
+  width: 80px;
+}
+
+.win-row .row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.win-row .row-text {
+  min-width: 0;
+}
+
+.win-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.win-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.win-actions .select {
+  margin-top: 0;
+  width: 200px;
+}

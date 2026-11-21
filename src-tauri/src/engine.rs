@@ -14,7 +14,7 @@ use crate::input::HookEvent;
 use crate::plat::display::{self, MonitorInfo};
 use crate::plat::vib::Drivers;
 use crate::plat::window::{self, Overlay};
-use crate::plat::{hooks, mag};
+use crate::plat::{borderless, hooks, mag};
 use crate::vibrance::{self, VibranceBackend};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -597,6 +597,14 @@ impl Engine {
                 }
                 if Self::bind_is(&b.wheel, vk) && self.wheel.is_none() {
                     self.open_wheel();
+                }
+                if Self::bind_is(&b.borderless, vk) {
+                    // Changing another program's window waits for it to answer: not under the lock.
+                    let (bl, monitors, app) = (self.settings.borderless.clone(), self.monitors.clone(), self.app.clone());
+                    std::thread::spawn(move || {
+                        let err = borderless::toggle_front(&bl, &monitors).err();
+                        let _ = app.emit("borderless-changed", err);
+                    });
                 }
             }
             HookEvent::Up(vk) => {

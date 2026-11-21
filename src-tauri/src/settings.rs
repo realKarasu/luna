@@ -24,6 +24,8 @@ pub struct Binds {
     pub tuning: Option<Bind>,
     pub color: Vec<Option<Bind>>,
     pub wheel: Option<Bind>,
+    /// Switches the window in front between borderless and its normal frame.
+    pub borderless: Option<Bind>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
@@ -86,6 +88,44 @@ impl Default for Zoom {
     fn default() -> Self {
         Zoom { factor: 2.5, monitor: String::new() }
     }
+}
+
+/// Where a borderless window goes.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Fit {
+    /// "stay" (frame off, same size and place), "fill" (whole screen), "keep" (the game's own
+    /// size, centred), a ratio such as "16:9", or "custom" (`width` x `height`), centred.
+    pub mode: String,
+    /// Monitor device name, empty = the screen the window is on.
+    pub monitor: String,
+    pub width: i32,
+    pub height: i32,
+}
+
+impl Default for Fit {
+    fn default() -> Self {
+        Fit { mode: "stay".into(), monitor: String::new(), width: 1920, height: 1080 }
+    }
+}
+
+/// A game made borderless by itself as soon as its window opens.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct BorderlessGame {
+    /// File name of the program, like `game.exe`.
+    pub exe: String,
+    /// Window title when it was remembered, for the list.
+    pub name: String,
+    pub fit: Fit,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Borderless {
+    /// Used by the key and the Make borderless button.
+    pub fit: Fit,
+    pub games: Vec<BorderlessGame>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -204,6 +244,7 @@ pub struct Settings {
     pub nvg: Nvg,
     pub holo: HoloSettings,
     pub zoom: Zoom,
+    pub borderless: Borderless,
     pub binds: Binds,
     /// Four preset ids for the colour keys.
     pub color_keys: Vec<String>,
@@ -231,6 +272,7 @@ impl Default for Settings {
             nvg: Nvg::default(),
             holo: HoloSettings::default(),
             zoom: Zoom::default(),
+            borderless: Borderless::default(),
             binds: Binds {
                 wheel: Some(Bind { vk: 0x76, label: "F7".into() }),
                 color: vec![None; 4],
@@ -312,6 +354,9 @@ mod tests {
         assert_eq!(s.theme.font, "hanken");
         assert_eq!(s.theme.skin, "nebula");
         assert_eq!(s.binds.wheel.as_ref().map(|b| b.vk), Some(0x76));
+        assert_eq!(s.borderless.fit.mode, "stay");
+        assert!(s.borderless.games.is_empty());
+        assert!(s.binds.borderless.is_none());
     }
 
     #[test]

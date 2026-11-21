@@ -42,6 +42,7 @@ Once installed, Luna keeps itself up to date: new versions are downloaded and ch
 - **Presets in one click.** 27 ready-made looks, your own presets, and share codes to swap them with friends.
 - **Crosshair overlay.** 10 designs, any colour and size, on top of any game, on the screen you choose.
 - **Night vision and zoom.** Hold a key for a green or blue night vision look, or to magnify the middle of the screen.
+- **Borderless window** (Windows). Takes the frame off a game in windowed mode, keeping its size or filling the screen, by key or by itself for the games you pick.
 - **Look wheel.** Hold a key, point at a preset, let go: the look changes instantly.
 - **Optimizer** (Windows). Ten common gaming tweaks in one place, each one with an undo.
 - **Five styles.** Change the whole look of the app: Nebula, Observatoire, Calibration, Terrain or Studio.
@@ -109,6 +110,7 @@ Luna is not signed with a paid certificate, so SmartScreen warns about it the fi
 | Hue, saturation, colour boost | ✓ | | |
 | Sight colours (True Black, Red Black Holo) | ✓ | | |
 | Ultra Zoom | ✓ | | |
+| Borderless window | ✓ | | |
 | Optimizer | ✓ | | |
 | Automatic updates | ✓ | ✓ | ✓ (AppImage) |
 
@@ -151,7 +153,8 @@ Only to check this repository for a new version, which you can turn off in Setti
 ### Game tools
 - **Ultra Zoom** (Windows): hold a key or mouse button to magnify the middle of a chosen screen (1.5x to 8x).
 - **Rust profile**: **Green NVG** and **Blue NVG** (gamma 3.00 with a tint while a bind is held), plus **Green True Black** and **Red Black Holo** on Windows, a colour matrix that pushes a sight's colour toward black.
-- **Binds**: keyboard keys or mouse buttons for Zoom, NVG, Tuning on/off, four colour keys and the look wheel. Click a key box and press the key to record it.
+- **Borderless** (Windows): pick an open window and click Make borderless, or press your key in game. By default the game keeps its size and place; it can also fill the screen, sit centred at 16:9, 21:9 or 4:3, or take a custom size. Remember a game and Luna does it by itself each time it opens.
+- **Binds**: keyboard keys or mouse buttons for Zoom, Borderless, NVG, Tuning on/off, four colour keys and the look wheel. Click a key box and press the key to record it.
 - **Look wheel**: hold F7 (changeable), point with the mouse at one of up to 8 presets, release to apply.
 
 ### Crosshair overlay
@@ -188,6 +191,7 @@ Only to check this repository for a new version, which you can turn off in Setti
 | Vibrance, NVIDIA | NVAPI, from `nvapi64.dll` | | `nvidia-settings` |
 | Vibrance, AMD | ADL saturation, from `atiadlxx.dll` | | |
 | Ultra Zoom | `MagSetFullscreenTransform` | | |
+| Borderless window | `SetWindowLongPtrW`, `SetWindowPos` | | |
 | Binds and look wheel | Low-level keyboard and mouse hooks | Polling, needs Accessibility | Polling the X server |
 | Start with the computer | `Run` registry key | LaunchAgent | XDG autostart entry |
 | Optimizer | Per-user registry, `powercfg`, `SystemParametersInfo` | | |

@@ -26,6 +26,34 @@ export interface Binds {
   tuning: Bind | null;
   color: (Bind | null)[];
   wheel: Bind | null;
+  borderless: Bind | null;
+}
+
+/** Where a borderless window goes. Every mode but "fill" is centred. */
+export interface Fit {
+  /** "fill", "keep", a ratio such as "16:9", or "custom". */
+  mode: string;
+  /** Monitor id, empty = the screen the window is on. */
+  monitor: string;
+  width: number;
+  height: number;
+}
+
+export interface BorderlessGame {
+  exe: string;
+  name: string;
+  fit: Fit;
+}
+
+/** A window of another program, as the Borderless page lists it. */
+export interface WindowInfo {
+  id: number;
+  title: string;
+  exe: string;
+  width: number;
+  height: number;
+  borderless: boolean;
+  framed: boolean;
 }
 
 export interface GammaPreset {
@@ -98,6 +126,7 @@ export interface Settings {
   nvg: { mode: "green" | "blue"; monitor: string };
   holo: { mode: "off" | "greenTrueBlack" | "redBlackHolo"; strength: number };
   zoom: { factor: number; monitor: string };
+  borderless: { fit: Fit; games: BorderlessGame[] };
   binds: Binds;
   colorKeys: string[];
   wheelPresets: string[];
@@ -175,4 +204,4 @@ export interface CleanResult {
   skipped: number;
 }
 
-export type Page = "display" | "presets" | "crosshair" | "zoom" | "optimizer" | "binds" | "theme" | "settings";
+export type Page = "display" | "presets" | "crosshair" | "zoom" | "borderless" | "optimizer" | "binds" | "theme" | "settings";

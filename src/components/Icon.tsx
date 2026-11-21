@@ -25,6 +25,7 @@ const PATHS: Record<string, string> = {
   sparkle: "M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z",
   broom: "M14 3l-4 9 M6 13h8l2 8H4z M8 17v4 M12 17v4",
   mouse: "M8 4h8v16H8z M12 4v6",
+  borderless: "M4 9V4h5 M15 4h5v5 M20 15v5h-5 M9 20H4v-5 M9 9h6v6H9z",
   zoom: "M10 4a6 6 0 1 0 .01 0 M15 15l5 5 M10 7v6 M7 10h6",
   moon: "M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z",
   eye: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z M12 9a3 3 0 1 0 .01 0",
