@@ -195,7 +195,7 @@ export const api = {
       driverVibrance: true,
       magnifier: true,
       gammaStrength: {},
-      version: "0.5.0",
+      version: "0.6.0",
       dataDir: "%APPDATA%\\Luna",
       autostart: false,
       update: IDLE_UPDATE,
