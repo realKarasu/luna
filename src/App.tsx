@@ -7,6 +7,7 @@ import { Sidebar, StatusBar, TitleBar, Toasts } from "./components/Chrome";
 import { DisplayPage } from "./pages/Display";
 import { PresetsPage } from "./pages/Presets";
 import { CrosshairPage } from "./pages/CrosshairPage";
+import { ZoomPage } from "./pages/ZoomPage";
 import { OptimizerPage } from "./pages/Optimizer";
 import { BindsPage } from "./pages/Binds";
 import { ThemePage } from "./pages/ThemePage";
@@ -113,6 +114,7 @@ function Shell() {
           {page === "display" && <DisplayPage />}
           {page === "presets" && <PresetsPage />}
           {page === "crosshair" && <CrosshairPage />}
+          {page === "zoom" && info.platform === "windows" && <ZoomPage />}
           {page === "optimizer" && info.optimizer && <OptimizerPage />}
           {page === "binds" && <BindsPage />}
           {page === "theme" && (

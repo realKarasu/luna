@@ -175,4 +175,4 @@ export interface CleanResult {
   skipped: number;
 }
 
-export type Page = "display" | "presets" | "crosshair" | "optimizer" | "binds" | "theme" | "settings";
+export type Page = "display" | "presets" | "crosshair" | "zoom" | "optimizer" | "binds" | "theme" | "settings";

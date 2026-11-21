@@ -47,3 +47,19 @@ export const HELP: HelpItem[] = [
     "They are plain JSON files in Luna's settings folder (AppData on Windows, Application Support on macOS, ~/.config/luna on Linux), which you can open from the Settings page. Luna has no account and no statistics: your settings never leave your computer. The only thing it fetches online is the update check, which you can turn off in Settings.",
   ],
 ];
+
+// Shown on the Zoom page.
+export const ZOOM_HELP: HelpItem[] = [
+  [
+    "The zoom does nothing in my game. Why?",
+    "Check that a key is set above, then set the game to borderless or windowed mode: in exclusive full screen, Windows may not be able to magnify the picture. If Luna says magnification is not available on this PC, the Windows magnifier itself is turned off or missing.",
+  ],
+  [
+    "Is zooming allowed in games?",
+    "Luna uses the Windows magnifier, the same one the accessibility settings use, so nothing is loaded into the game. Some games and tournaments still forbid any zoom tool, so check their rules before using it in ranked matches.",
+  ],
+  [
+    "Why only on Windows?",
+    "Ultra Zoom relies on the Windows magnifier. macOS and Linux have no equivalent that Luna can drive the same way, so the page only appears on Windows.",
+  ],
+];

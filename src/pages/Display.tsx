@@ -225,7 +225,7 @@ export function DisplayPage() {
 
       <Panel
         title="Game tools"
-        subtitle="Hold-to-use tools. Set their keys on the Binds page."
+        subtitle="Night vision and sight colours for Rust. Ultra Zoom has its own page."
         right={
           <Segmented
             value={settings.profile}
@@ -238,34 +238,6 @@ export function DisplayPage() {
         }
       >
         <div className="tools-grid">
-          <div className="tool">
-            <div className="tool-head">
-              <Icon name="zoom" />
-              <h3>Ultra Zoom</h3>
-              <Chip tone="accent">{settings.binds.zoom?.label ?? "No key"}</Chip>
-            </div>
-            <p className="muted small">Magnifies the middle of the screen while the key is held.</p>
-            {!info.magnifier && (
-              <p className="note warn">
-                {info.platform === "windows" ? "Windows magnification is not available on this PC." : `Ultra Zoom uses the Windows magnifier, so it is not available on ${osName(info.platform)}.`}
-              </p>
-            )}
-            <Slider
-              label="Zoom"
-              value={settings.zoom.factor}
-              min={1.5}
-              max={8}
-              step={0.1}
-              def={2.5}
-              unit="x"
-              onChange={(v) => update((s) => ({ ...s, zoom: { ...s.zoom, factor: v } }))}
-            />
-            <label className="field">
-              <span className="muted small">Screen</span>
-              <Select label="Zoom screen" value={settings.zoom.monitor} options={monitorOptions} onChange={(v) => update((s) => ({ ...s, zoom: { ...s.zoom, monitor: v } }))} />
-            </label>
-          </div>
-
           {rust ? (
             <>
               <div className="tool">
@@ -320,7 +292,7 @@ export function DisplayPage() {
           ) : (
             <div className="tool tool-hint">
               <Icon name="sparkle" />
-              <p className="muted small">Pick the Rust profile for night vision and sight colour tools.</p>
+              <p className="muted small">Pick the Rust profile for night vision and sight colour tools. Ultra Zoom is on its own page in the menu.</p>
             </div>
           )}
         </div>

@@ -1386,6 +1386,67 @@ a.btn {
   border-style: dashed;
 }
 
+/* ---------------- zoom page ---------------- */
+
+.zoom-stage {
+  position: relative;
+  height: 256px;
+  border-radius: calc(var(--r-panel) - 6px);
+  border: 1px solid var(--line-2);
+  background: #111 center no-repeat;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: background-size 0.2s ease;
+}
+
+.zoom-mini {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 112px;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: #111 center / cover;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.zoom-mini span {
+  border: 1.5px solid var(--accent-2);
+  border-radius: 2px;
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.45);
+  transition: width 0.2s ease, height 0.2s ease;
+}
+
+.zoom-factor {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.zoom-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.zoom-steps {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 4px 0 10px;
+}
+
 /* ---------------- presets page ---------------- */
 
 .card-grid {
