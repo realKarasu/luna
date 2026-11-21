@@ -3,7 +3,8 @@
 //! Luna ends, whatever the reason.
 
 use crate::gamma::Ramp;
-use crate::screens::{self, MonitorInfo};
+use crate::screens;
+pub use crate::screens::MonitorInfo;
 pub use crate::screens::MATRIX_VIBRANCE;
 use crate::vibrance::Vendor;
 

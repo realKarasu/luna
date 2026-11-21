@@ -3,7 +3,8 @@
 //! this only reaches XWayland, which does not change the real screen.
 
 use crate::gamma::Ramp;
-use crate::screens::{self, MonitorInfo};
+use crate::screens;
+pub use crate::screens::MonitorInfo;
 pub use crate::screens::MATRIX_VIBRANCE;
 use crate::vibrance::Vendor;
 use std::os::raw::c_int;
