@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="What Luna does on your PC, what it never does, and how to check it yourself." />
+    <link rel="icon" type="image/svg+xml" href="./luna.svg" />
+    <title>Is Luna safe? | Luna</title>
+  </head>
+  <body>
+    <header class="top" role="banner">
+      <a class="brand" href="./index.html">
+        <img src="./luna.svg" alt="" width="22" height="22" />
+        <span>Luna</span>
+      </a>
+      <a class="back" href="./index.html">Back to Luna</a>
+    </header>
+
+    <main class="wrap">
+      <h1>Is Luna safe?</h1>
+      <p class="lead">
+        Yes. Luna is an ordinary Windows program that changes how your screens show colour, using settings Windows and your graphics driver
+        already offer to every app. It never goes inside a game, never reads game memory and never talks to the internet. All of its code is
+        open, so you can read it and build it yourself.
+      </p>
+
+      <div class="verdict">
+        <span class="verdict-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M5 12l5 5 9-10" /></svg>
+        </span>
+        <div>
+          <strong>Open source, offline, no administrator rights</strong>
+          <p>No injection, no access to other programs' memory, no driver or service, no account and no network connection.</p>
+        </div>
+      </div>
+
+      <section aria-labelledby="never">
+        <h2 id="never">What Luna never does</h2>
+        <ul class="facts">
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Go inside games or other programs</strong>
+            <p>No DLL is loaded into another process and no code is started inside one. Luna has no way to reach into a game.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Read or change game memory</strong>
+            <p>Luna never opens another program with memory rights, so it cannot read or write what a game keeps in memory.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Touch game files</strong>
+            <p>Game folders, game settings files and anti-cheat files are never opened or edited.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Block, change or record your input</strong>
+            <p>Every key and click is passed on to the game untouched. Nothing you type is stored, logged or sent.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Install a driver or a service</strong>
+            <p>Luna runs as a normal app under your own account and never asks for administrator rights.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Use the internet</strong>
+            <p>Luna itself makes no network requests: no login, no background updates, no statistics. It works the same with the network unplugged.</p>
+          </li>
+          <li class="no">
+            <span class="mark" aria-hidden="true">&times;</span>
+            <strong>Delete your files</strong>
+            <p>The only files Luna removes are old ones in your own Temp folder, and only when you press Clean.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="does">
+        <h2 id="does">What Luna does, and how</h2>
+        <ul class="facts">
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Gamma, brightness, contrast and RGB</strong>
+            <p>The display colour curve every screen has (SetDeviceGammaRamp), the same one night light tools and calibration apps use.</p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Hue, saturation, night vision and Ultra Zoom</strong>
+            <p>The Windows Magnification API, a full screen colour filter and zoom that is part of Windows.</p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Vibrance on NVIDIA and AMD cards</strong>
+            <p>
+              The driver's own setting: digital vibrance through nvapi64.dll on NVIDIA, saturation through atiadlxx.dll on AMD. Both are loaded only from
+              the Windows System32 folder, and only when that card is present. Intel and other cards get the full screen colour filter instead.
+            </p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Finding your graphics card</strong>
+            <p>DXGI, the Windows graphics list, tells Luna which card drives each screen. Luna reads the card's name and maker, nothing else.</p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Binds and the look wheel</strong>
+            <p>
+              A keyboard and mouse listener (low level hooks) tells Luna when a key goes up or down. Luna compares it with the keys you set and passes
+              it straight on. Mouse movement is read only while the look wheel is open.
+            </p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Crosshair and look wheel overlays</strong>
+            <p>Small see through windows that stay on top and ignore clicks. They draw pictures; they do not read the screen.</p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Optimizer</strong>
+            <p>
+              Only the Windows settings you switch on, all in your own user settings (power plan, Game Mode, Game Bar recording, mouse acceleration and
+              others). The old value is saved first, so Undo puts it back.
+            </p>
+          </li>
+          <li class="yes">
+            <span class="mark" aria-hidden="true">&check;</span>
+            <strong>Settings and Start with Windows</strong>
+            <p>Plain JSON files in your AppData folder, and one entry in your own startup list, only if you turn it on.</p>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="check">
+        <h2 id="check">Check it yourself</h2>
+        <div class="cards">
+          <div class="card">
+            <h3>Read the code</h3>
+            <p>
+              Luna is MIT licensed. Every Windows call lives in a handful of small Rust files, one per feature, so the list below is easy to compare
+              with the source.
+            </p>
+            <h3>Build your own copy</h3>
+            <p>Install Rust and Node.js, then run these two commands in the Luna folder. The program you get is made only from the code you read.</p>
+            <pre class="cmd">npm install
+npm run tauri build</pre>
+          </div>
+          <div class="card">
+            <h3>Compare a download</h3>
+            <p>In PowerShell you can print the fingerprint of any file and compare it with the one published with each release:</p>
+            <pre class="cmd">Get-FileHash .\Luna_x64-setup.exe</pre>
+            <h3>About the SmartScreen warning</h3>
+            <p>
+              Windows warns about new programs that are not signed with a paid certificate. It is not a virus alert. Choose More info, then Run anyway,
+              or build Luna yourself.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="list">
+        <h2 id="list">Every Windows function that matters</h2>
+        <p class="lead small">The calls a cautious player may ask about, where Luna uses them, and what it does not use at all.</p>
+        <pre class="listing">
+Luna, Windows functions in its own code
+Source: src-tauri/src (Rust), one file per feature
+Network: none. Administrator rights: never asked for.
+
+Used, and why
+  SetDeviceGammaRamp           colour curve of each screen (gamma, brightness, contrast, RGB)
+  GetDeviceGammaRamp           remembers each screen's curve so it can be put back
+  EnumDisplayMonitors          lists your screens and their positions
+  GetMonitorInfoW              screen name, size and which one is the main screen
+  CreateDCW                    opens a screen's colour curve, nothing else
+  MagInitialize                starts the Windows colour filter and zoom
+  MagSetFullscreenColorEffect  hue, saturation, night vision colours
+  MagSetFullscreenTransform    Ultra Zoom
+  CreateDXGIFactory1           which graphics card drives each screen (name and maker)
+  LoadLibraryExW               nvapi64.dll (NVIDIA) or atiadlxx.dll (AMD), System32 only
+  WM_DISPLAYCHANGE             notices new screens, resolutions and cards
+  SetWindowsHookExW            keyboard and mouse listener for your binds, never blocks input
+  GetAsyncKeyState             is a bound key still held down
+  GetCursorPos                 where the mouse points while the look wheel is open
+  SystemParametersInfoW        Optimizer: mouse acceleration, Sticky Keys, animations
+  PowerSetActiveScheme         Optimizer: power plan
+  RegSetValueExW               Optimizer tweaks and Start with Windows, your user only
+  RegQueryValueExW             reads the old value first so Undo can put it back
+
+Programs Luna starts
+  powercfg.exe                 copies the High performance plan, only if Windows hides it
+  explorer.exe                 opens your settings folder, only when you click it
+
+Never called by Luna's own code
+  CreateRemoteThread           start code inside another program
+  QueueUserAPC                 run code inside another program's thread
+  SetThreadContext             take over another program's thread
+  WriteProcessMemory           write into another program
+  ReadProcessMemory            read another program, such as a game
+  VirtualAllocEx               reserve memory inside another program
+  VirtualProtectEx             change another program's memory rights
+  OpenProcess                  open another program at all
+  GetKeyboardState             read the whole keyboard
+  RegisterRawInputDevices      capture all raw input
+  URLDownloadToFileW           download a file
+  WinHttpOpen                  talk to a server
+  CryptEncrypt                 encrypt files
+  AdjustTokenPrivileges        raise its own rights
+  CreateServiceW               install a service
+  NtLoadDriver                 load a kernel driver
+  DeviceIoControl              talk to a driver directly
+
+Result: no injection, no memory access, no network, no driver.
+        </pre>
+      </section>
+    </main>
+
+    <footer class="foot" role="contentinfo">
+      <span>Luna, free and open source under the MIT licence.</span>
+      <span class="muted">An independent project, not affiliated with any other display tuning product.</span>
+    </footer>
+
+    <script type="module" src="/src/security.ts"></script>
+  </body>
+</html>

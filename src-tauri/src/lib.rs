@@ -1,0 +1,392 @@
+//! Luna: per-screen display tuning, crosshair overlay and Windows gaming tweaks.
+
+pub mod color;
+pub mod gamma;
+pub mod settings;
+pub mod sharecode;
+pub mod vibrance;
+
+#[cfg(windows)]
+mod engine;
+#[cfg(windows)]
+mod win;
+
+#[cfg(windows)]
+mod app {
+    use crate::engine::{self, engine, Engine, EngineMsg, UiMsg};
+    use crate::settings::{self, Settings};
+    use crate::sharecode::{self, SharePayload};
+    use crate::win::{self, display::MonitorInfo, hooks, optimizer};
+    use serde::Serialize;
+    use std::collections::HashMap;
+    use std::sync::mpsc::{channel, Sender};
+    use std::sync::{Mutex, OnceLock};
+    use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+    use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+
+    static ENGINE_TX: OnceLock<Mutex<Sender<EngineMsg>>> = OnceLock::new();
+
+    fn post(msg: EngineMsg) {
+        if let Some(tx) = ENGINE_TX.get() {
+            if let Ok(tx) = tx.lock() {
+                let _ = tx.send(msg);
+            }
+        }
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct AppState {
+        settings: Settings,
+        monitors: Vec<MonitorInfo>,
+        /// At least one screen gets its vibrance from the graphics driver.
+        driver_vibrance: bool,
+        magnifier: bool,
+        gamma_strength: HashMap<String, f64>,
+        version: String,
+        data_dir: String,
+        autostart: bool,
+    }
+
+    // ---------------- commands ----------------
+
+    #[tauri::command]
+    async fn get_state(app: AppHandle) -> AppState {
+        let e = engine();
+        AppState {
+            settings: e.settings.clone(),
+            monitors: e.monitors.clone(),
+            driver_vibrance: e.driver_vibrance(),
+            magnifier: win::mag::available(),
+            gamma_strength: e.gamma_strength.clone(),
+            version: app.package_info().version.to_string(),
+            data_dir: settings::data_dir().display().to_string(),
+            autostart: win::autostart_enabled(),
+        }
+    }
+
+    #[tauri::command]
+    async fn set_settings(settings: Settings) -> HashMap<String, f64> {
+        let mut e = engine();
+        e.set_settings(settings);
+        e.gamma_strength.clone()
+    }
+
+    #[tauri::command]
+    async fn reset_display() -> Settings {
+        let mut e = engine();
+        e.reset();
+        e.settings.clone()
+    }
+
+    #[tauri::command]
+    async fn start_bind_record() {
+        engine().recording = true;
+    }
+
+    #[tauri::command]
+    async fn cancel_bind_record() {
+        engine().recording = false;
+    }
+
+    #[tauri::command]
+    async fn optimizer_status() -> Vec<optimizer::TweakStatus> {
+        optimizer::status()
+    }
+
+    #[tauri::command]
+    async fn optimizer_set(id: String, on: bool) -> Result<Vec<optimizer::TweakStatus>, String> {
+        optimizer::set(&id, on)?;
+        Ok(optimizer::status())
+    }
+
+    #[derive(Serialize)]
+    struct BulkResult {
+        errors: Vec<String>,
+        status: Vec<optimizer::TweakStatus>,
+    }
+
+    #[tauri::command]
+    async fn optimizer_all() -> BulkResult {
+        let errors = optimizer::optimize_all();
+        BulkResult { errors, status: optimizer::status() }
+    }
+
+    #[tauri::command]
+    async fn optimizer_undo_all() -> BulkResult {
+        let errors = optimizer::undo_all();
+        BulkResult { errors, status: optimizer::status() }
+    }
+
+    #[tauri::command]
+    async fn clean_temp() -> optimizer::CleanResult {
+        optimizer::clean_temp()
+    }
+
+    #[tauri::command]
+    async fn share_encode(payload: SharePayload) -> Result<String, String> {
+        sharecode::encode(&payload)
+    }
+
+    #[tauri::command]
+    async fn share_decode(code: String) -> Result<SharePayload, String> {
+        sharecode::decode(&code)
+    }
+
+    #[tauri::command]
+    async fn set_autostart(on: bool) -> Result<bool, String> {
+        win::set_autostart(on)?;
+        Ok(win::autostart_enabled())
+    }
+
+    fn background_path() -> std::path::PathBuf {
+        settings::data_dir().join("background.txt")
+    }
+
+    #[tauri::command]
+    async fn get_background() -> Option<String> {
+        std::fs::read_to_string(background_path()).ok()
+    }
+
+    #[tauri::command]
+    async fn set_background(data: Option<String>) -> Result<(), String> {
+        match data {
+            Some(d) => {
+                if !d.starts_with("data:image/") {
+                    return Err("Only pictures can be used as a background.".into());
+                }
+                std::fs::create_dir_all(settings::data_dir()).map_err(|e| e.to_string())?;
+                std::fs::write(background_path(), d).map_err(|e| e.to_string())
+            }
+            None => {
+                let _ = std::fs::remove_file(background_path());
+                Ok(())
+            }
+        }
+    }
+
+    #[tauri::command]
+    async fn open_data_dir() {
+        let dir = settings::data_dir();
+        let _ = std::fs::create_dir_all(&dir);
+        let _ = std::process::Command::new("explorer.exe").arg(dir).spawn();
+    }
+
+    #[tauri::command]
+    async fn quit_app(app: AppHandle) {
+        shutdown();
+        app.exit(0);
+    }
+
+    fn shutdown() {
+        if engine::engine_ready() {
+            engine().shutdown();
+        }
+    }
+
+    // ---------------- windows and tray ----------------
+
+    fn show_main(app: &AppHandle) {
+        if let Some(w) = app.get_webview_window("main") {
+            let _ = w.unminimize();
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+    }
+
+    fn overlay(app: &AppHandle, label: &str, page: &str, size: f64) -> isize {
+        let built = WebviewWindowBuilder::new(app, label, WebviewUrl::App(page.into()))
+            .title(format!("Luna {label}"))
+            .transparent(true)
+            .decorations(false)
+            .shadow(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(false)
+            .focused(false)
+            .visible(false)
+            .inner_size(size, size)
+            .build();
+        match built {
+            Ok(w) => {
+                let _ = w.set_ignore_cursor_events(true);
+                match w.hwnd() {
+                    Ok(h) => {
+                        let raw = h.0 as isize;
+                        win::window::make_overlay(raw);
+                        raw
+                    }
+                    Err(_) => 0,
+                }
+            }
+            Err(_) => 0,
+        }
+    }
+
+    fn build_tray(app: &AppHandle) -> tauri::Result<()> {
+        let open = MenuItem::with_id(app, "open", "Open Luna", true, None::<&str>)?;
+        let tuning = CheckMenuItem::with_id(app, "tuning", "Tuning on", true, true, None::<&str>)?;
+        let crosshair = CheckMenuItem::with_id(app, "crosshair", "Crosshair", true, false, None::<&str>)?;
+        let reset = MenuItem::with_id(app, "reset", "Reset display", true, None::<&str>)?;
+        let quit = MenuItem::with_id(app, "quit", "Quit Luna", true, None::<&str>)?;
+        let sep1 = PredefinedMenuItem::separator(app)?;
+        let sep2 = PredefinedMenuItem::separator(app)?;
+        let menu = Menu::with_items(app, &[&open, &sep1, &tuning, &crosshair, &reset, &sep2, &quit])?;
+
+        let mut builder = TrayIconBuilder::with_id("luna")
+            .tooltip("Luna")
+            .menu(&menu)
+            .show_menu_on_left_click(false)
+            .on_menu_event(|app, event| match event.id.as_ref() {
+                "open" => show_main(app),
+                "tuning" => post(EngineMsg::ToggleTuning),
+                "crosshair" => post(EngineMsg::ToggleCrosshair),
+                "reset" => post(EngineMsg::Reset),
+                "quit" => {
+                    shutdown();
+                    app.exit(0);
+                }
+                _ => {}
+            })
+            .on_tray_icon_event(|tray, event| {
+                if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                    show_main(tray.app_handle());
+                }
+            });
+        if let Some(icon) = app.default_window_icon() {
+            builder = builder.icon(icon.clone());
+        }
+        builder.build(app)?;
+
+        // Keeps the check marks in step with the engine, outside the engine lock.
+        let (ui_tx, ui_rx) = channel::<UiMsg>();
+        let tuning_item = tuning.clone();
+        let crosshair_item = crosshair.clone();
+        std::thread::Builder::new()
+            .name("luna-tray".into())
+            .spawn(move || {
+                while let Ok(UiMsg::Tray { tuning, crosshair }) = ui_rx.recv() {
+                    let _ = tuning_item.set_checked(tuning);
+                    let _ = crosshair_item.set_checked(crosshair);
+                }
+            })
+            .ok();
+        app.manage(TraySender(Mutex::new(ui_tx)));
+        Ok(())
+    }
+
+    struct TraySender(Mutex<Sender<UiMsg>>);
+
+    pub fn run() {
+        // A panic must never leave the screens tinted.
+        let default_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            engine::restore_from_file();
+            engine::restore_vibrance_after_panic();
+            default_hook(info);
+        }));
+
+        let autostarted = std::env::args().any(|a| a == "--autostart");
+
+        let app = tauri::Builder::default()
+            .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
+            .invoke_handler(tauri::generate_handler![
+                get_state,
+                set_settings,
+                reset_display,
+                start_bind_record,
+                cancel_bind_record,
+                optimizer_status,
+                optimizer_set,
+                optimizer_all,
+                optimizer_undo_all,
+                clean_temp,
+                share_encode,
+                share_decode,
+                set_autostart,
+                get_background,
+                set_background,
+                open_data_dir,
+                quit_app
+            ])
+            .setup(move |app| {
+                let handle = app.handle().clone();
+                build_tray(&handle)?;
+                let ui_tx = handle.state::<TraySender>().0.lock().map(|t| t.clone()).expect("tray channel");
+
+                let settings = settings::load();
+                let start_hidden = autostarted && settings.app.start_minimized;
+                Engine::start(handle.clone(), ui_tx, settings);
+
+                let crosshair = overlay(&handle, "crosshair", "crosshair.html", engine::CROSSHAIR_SIZE as f64);
+                let wheel = overlay(&handle, "wheel", "wheel.html", engine::WHEEL_SIZE as f64);
+                engine().set_overlay_windows(crosshair, wheel);
+
+                // Engine thread: hook events, tray actions and a one-second tick.
+                let (tx, rx) = channel::<EngineMsg>();
+                let _ = ENGINE_TX.set(Mutex::new(tx.clone()));
+                let (hook_tx, hook_rx) = channel::<hooks::HookEvent>();
+                hooks::start(hook_tx);
+                let fwd = tx.clone();
+                std::thread::Builder::new()
+                    .name("luna-hook-forward".into())
+                    .spawn(move || {
+                        while let Ok(e) = hook_rx.recv() {
+                            if fwd.send(EngineMsg::Hook(e)).is_err() {
+                                break;
+                            }
+                        }
+                    })?;
+                let tick = tx.clone();
+                std::thread::Builder::new().name("luna-tick".into()).spawn(move || loop {
+                    std::thread::sleep(std::time::Duration::from_secs(1));
+                    if tick.send(EngineMsg::Tick).is_err() {
+                        break;
+                    }
+                })?;
+                std::thread::Builder::new().name("luna-engine".into()).spawn(move || {
+                    while let Ok(msg) = rx.recv() {
+                        engine().handle(msg);
+                    }
+                })?;
+
+                if !start_hidden {
+                    show_main(&handle);
+                }
+                Ok(())
+            })
+            .on_window_event(|window, event| {
+                if window.label() != "main" {
+                    return;
+                }
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    let to_tray = engine::engine_ready() && engine().settings.app.close_to_tray;
+                    if to_tray {
+                        api.prevent_close();
+                        let _ = window.hide();
+                    } else {
+                        shutdown();
+                        window.app_handle().exit(0);
+                    }
+                }
+            })
+            .build(tauri::generate_context!())
+            .expect("error while building Luna");
+
+        app.run(|_app, event| match event {
+            RunEvent::ExitRequested { .. } | RunEvent::Exit => shutdown(),
+            _ => {}
+        });
+    }
+}
+
+#[cfg(windows)]
+pub fn run() {
+    app::run()
+}
+
+#[cfg(not(windows))]
+pub fn run() {
+    eprintln!("Luna runs on Windows 10 and 11 only.");
+}
