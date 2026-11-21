@@ -13,6 +13,7 @@ mod engine;
 mod fit;
 mod input;
 mod screens;
+mod sweep;
 mod update;
 
 #[cfg(windows)]
@@ -76,6 +77,8 @@ mod app {
         data_dir: String,
         autostart: bool,
         update: UpdateStatus,
+        /// The page to open first, when Luna restarted itself as administrator.
+        start_page: Option<String>,
     }
 
     // ---------------- commands ----------------
@@ -96,6 +99,7 @@ mod app {
             data_dir: settings::data_dir().display().to_string(),
             autostart: plat::autostart_enabled(),
             update: update::status(),
+            start_page: arg_after("--page"),
         }
     }
 
@@ -153,8 +157,22 @@ mod app {
     }
 
     #[tauri::command]
-    async fn clean_temp() -> optimizer::CleanResult {
-        optimizer::clean_temp()
+    async fn clean_scan() -> crate::sweep::CleanReport {
+        plat::cleaner::scan()
+    }
+
+    #[tauri::command]
+    async fn clean_run(ids: Vec<String>) -> crate::sweep::CleanResult {
+        plat::cleaner::run(&ids)
+    }
+
+    /// Starts an elevated copy of Luna, then closes this one.
+    #[tauri::command]
+    async fn restart_admin(app: AppHandle, page: String) -> Result<(), String> {
+        plat::relaunch_admin(&page)?;
+        shutdown();
+        app.exit(0);
+        Ok(())
     }
 
     #[tauri::command]
@@ -246,6 +264,13 @@ mod app {
     async fn update_install() -> Result<(), String> {
         shutdown();
         update::install_now(true)
+    }
+
+    /// The value that follows `flag` on the command line.
+    fn arg_after(flag: &str) -> Option<String> {
+        let mut args = std::env::args().skip_while(|a| a != flag);
+        args.next()?;
+        args.next()
     }
 
     fn shutdown() {
@@ -352,6 +377,10 @@ mod app {
         }));
 
         let autostarted = std::env::args().any(|a| a == "--autostart");
+        // Restarted as administrator: let the old copy close first, or it would keep the single instance.
+        if let Some(pid) = arg_after("--after").and_then(|p| p.parse().ok()) {
+            plat::wait_for_exit(pid);
+        }
 
         let app = tauri::Builder::default()
             .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| show_main(app)))
@@ -366,7 +395,9 @@ mod app {
                 optimizer_set,
                 optimizer_all,
                 optimizer_undo_all,
-                clean_temp,
+                clean_scan,
+                clean_run,
+                restart_admin,
                 borderless_windows,
                 borderless_apply,
                 borderless_restore,

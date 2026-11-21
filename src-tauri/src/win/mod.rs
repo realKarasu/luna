@@ -2,6 +2,7 @@
 
 pub mod adl;
 pub mod borderless;
+pub mod cleaner;
 pub mod display;
 pub mod gpu;
 pub mod hooks;
@@ -47,4 +48,33 @@ pub fn open_dir(dir: &std::path::Path) {
 /// Something the user should know about this system, shown in the app.
 pub fn note() -> Option<String> {
     None
+}
+
+/// Starts Luna again as administrator (Windows asks first). The caller then quits this copy.
+pub fn relaunch_admin(page: &str) -> Result<(), String> {
+    use windows::core::{w, HSTRING};
+    use windows::Win32::UI::Shell::ShellExecuteW;
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let page = if !page.is_empty() && page.chars().all(|c| c.is_ascii_alphanumeric()) { page } else { "display" };
+    let args = HSTRING::from(format!("--after {} --page {page}", std::process::id()));
+    let done = unsafe { ShellExecuteW(None, w!("runas"), &HSTRING::from(exe.as_os_str()), &args, None, SW_SHOWNORMAL) };
+    // Anything above 32 means it started. Five is a refused prompt.
+    match done.0 as isize {
+        n if n > 32 => Ok(()),
+        5 => Err("Windows did not get permission to start Luna as administrator.".into()),
+        n => Err(format!("Luna could not start as administrator (error {n}).")),
+    }
+}
+
+/// Waits a few seconds for the copy of Luna that started this one to close.
+pub fn wait_for_exit(pid: u32) {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+    unsafe {
+        if let Ok(h) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+            let _ = WaitForSingleObject(h, 5000);
+            let _ = CloseHandle(h);
+        }
+    }
 }

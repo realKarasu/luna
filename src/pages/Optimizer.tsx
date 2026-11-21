@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import type { CleanResult, TweakStatus } from "../types";
+import type { TweakStatus } from "../types";
 import { useStore } from "../store";
 import { api, errorText } from "../lib/backend";
-import { Chip, Panel, Toggle } from "../components/ui";
+import { Chip, Toggle } from "../components/ui";
 import { Icon } from "../components/Icon";
 
 const TWEAKS: Record<string, { title: string; desc: string }> = {
@@ -18,23 +18,10 @@ const TWEAKS: Record<string, { title: string; desc: string }> = {
   animations: { title: "Window animations off", desc: "Windows open and close instantly." },
 };
 
-function size(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  const units = ["KB", "MB", "GB"];
-  let v = bytes / 1024;
-  let i = 0;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(v >= 100 ? 0 : 1)} ${units[i]}`;
-}
-
 export function OptimizerPage() {
   const { toast } = useStore();
   const [status, setStatus] = useState<TweakStatus[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [clean, setClean] = useState<CleanResult | null>(null);
 
   useEffect(() => {
     api.optimizerStatus().then(setStatus).catch((e) => toast(errorText(e), "bad"));
@@ -110,31 +97,6 @@ export function OptimizerPage() {
           );
         })}
       </div>
-
-      <Panel title="Clean temp files" subtitle="Deletes files older than one day from your temp folder. Files in use are skipped.">
-        <div className="toolbar">
-          <button
-            type="button"
-            className="btn"
-            disabled={!!busy}
-            onClick={() =>
-              run("clean", async () => {
-                const r = await api.cleanTemp();
-                setClean(r);
-                toast(`Freed ${size(r.freedBytes)}.`, "good");
-              })
-            }
-          >
-            <Icon name="broom" size={15} /> {busy === "clean" ? "Cleaning..." : "Clean now"}
-          </button>
-          {clean && (
-            <span className="muted">
-              Freed <strong className="accent-text">{size(clean.freedBytes)}</strong> from {clean.files} files
-              {clean.skipped ? `, ${clean.skipped} skipped (in use or too new)` : ""}.
-            </span>
-          )}
-        </div>
-      </Panel>
     </div>
   );
 }

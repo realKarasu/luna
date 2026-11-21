@@ -1958,3 +1958,83 @@ a.btn {
   margin-top: 0;
   width: 200px;
 }
+
+/* ---------------- clean ---------------- */
+
+.clean-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  max-width: 560px;
+}
+
+.clean-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.clean-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 0.3s var(--ease);
+}
+
+.clean-fill.scanning {
+  opacity: 0.5;
+  animation: clean-scan 1.4s var(--ease) infinite alternate;
+}
+
+@keyframes clean-scan {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(330%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clean-fill.scanning {
+    animation: none;
+  }
+}
+
+.clean-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.clean-row.locked .row-title,
+.clean-row.locked .clean-size {
+  color: var(--muted);
+}
+
+.clean-side {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+}
+
+.clean-size {
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.clean-page .xh-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (max-width: 1100px) {
+  .clean-page .xh-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

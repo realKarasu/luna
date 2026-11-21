@@ -10,6 +10,7 @@ import { CrosshairPage } from "./pages/CrosshairPage";
 import { ZoomPage } from "./pages/ZoomPage";
 import { BorderlessPage } from "./pages/BorderlessPage";
 import { OptimizerPage } from "./pages/Optimizer";
+import { CleanPage } from "./pages/CleanPage";
 import { BindsPage } from "./pages/Binds";
 import { ThemePage } from "./pages/ThemePage";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -75,6 +76,11 @@ function Shell() {
   const [page, setPage] = useState<Page>("display");
   const [background, setBackground] = useState<string | null>(null);
 
+  // After a restart as administrator, Luna opens on the page that asked for it.
+  useEffect(() => {
+    if (info.startPage) setPage(info.startPage as Page);
+  }, [info.startPage]);
+
   useEffect(() => applyTheme(settings.theme), [settings.theme]);
   useEffect(() => {
     api
@@ -115,6 +121,7 @@ function Shell() {
           {page === "zoom" && info.platform === "windows" && <ZoomPage />}
           {page === "borderless" && info.platform === "windows" && <BorderlessPage />}
           {page === "optimizer" && info.optimizer && <OptimizerPage />}
+          {page === "clean" && info.platform === "windows" && <CleanPage />}
           {page === "binds" && <BindsPage />}
           {page === "theme" && (
             <ThemePage background={background} onBackground={setBackground} />

@@ -2,7 +2,7 @@
 // small demo backend so the interface can still be explored.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppState, Bind, CleanResult, Fit, MonitorInfo, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
+import type { AppState, Bind, CleanItem, CleanReport, CleanResult, Fit, MonitorInfo, Page, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
 import { defaultSettings } from "./defaults";
 import { decodeShare, encodeShare } from "./sharecode";
 
@@ -67,6 +67,34 @@ const demoSet = (id: number, borderless: boolean) => {
   demoWindows = demoWindows.map((w) => (w.id === id ? { ...w, borderless, framed: !borderless } : w));
   return demoWindows;
 };
+const MB = 1024 * 1024;
+const demoItem = (id: string, group: CleanItem["group"], title: string, desc: string, mb: number, files: number, extra: Partial<CleanItem> = {}): CleanItem => ({
+  id,
+  group,
+  title,
+  desc,
+  bytes: Math.round(mb * MB),
+  files,
+  suggested: true,
+  needsAdmin: false,
+  open: null,
+  ...extra,
+});
+let demoClean: CleanItem[] = [
+  demoItem("temp", "system", "Temporary files", "Files programs leave in your temp folder. Only those older than a day go.", 4605, 33793),
+  demoItem("windowsTemp", "system", "Windows temporary files", "The temp folder Windows and installers use. Only files older than a day go.", 0, 0, { needsAdmin: true }),
+  demoItem("crashReports", "system", "Crash dumps and error reports", "Copies of memory and reports kept after a program or game crashed.", 139, 10),
+  demoItem("updateCache", "system", "Windows Update downloads", "Update files already installed. Windows downloads again whatever it still needs.", 189, 18, { needsAdmin: true }),
+  demoItem("thumbnails", "system", "Thumbnail cache", "Small previews of pictures and videos. Windows draws them again, folders open a bit slower at first.", 73, 30, { suggested: false }),
+  demoItem("recycleBin", "system", "Recycle Bin", "Everything you deleted. It cannot be brought back after this.", 312, 41, { suggested: false }),
+  demoItem("chrome", "browsers", "Chrome", "Cached pages and pictures. History, passwords and cookies stay.", 23, 131),
+  demoItem("firefox", "browsers", "Firefox", "Cached pages and pictures. History, passwords and cookies stay.", 1054, 6605, { open: "Firefox" }),
+  demoItem("discord", "apps", "Discord", "Cached pictures, emojis and videos from your chats.", 455, 4764, { open: "Discord" }),
+  demoItem("steam", "apps", "Steam", "Store and library page cache, old logs and crash dumps. Games and saves stay.", 523, 4818),
+  demoItem("spotify", "apps", "Spotify", "Songs kept to play them faster. Downloads for offline listening stay.", 599, 1016),
+  demoItem("shaders", "apps", "Graphics card shader cache", "Shaders games build on your graphics card. They are rebuilt on the next launch, which can stutter for a few minutes. Worth it after a driver update.", 529, 889, { suggested: false }),
+  demoItem("devCaches", "dev", "Package caches", "Downloads kept by npm, Yarn, pip, NuGet, Cargo and Go. Projects keep working, the next install downloads again.", 2898, 24639, { suggested: false }),
+];
 let demoBackground: string | null = null;
 
 function demoLoad(): Settings {
@@ -174,6 +202,7 @@ export const api = {
       platform: "windows",
       optimizer: true,
       note: null,
+      startPage: null,
     };
   },
   async setSettings(s: Settings): Promise<Record<string, number>> {
@@ -219,9 +248,27 @@ export const api = {
     TWEAK_IDS.forEach((id) => (demoTweaks[id] = false));
     return { errors: [], status: demoTweakStatus() };
   },
-  async cleanTemp(): Promise<CleanResult> {
-    if (isTauri) return invoke("clean_temp");
-    return { freedBytes: 0, files: 0, skipped: 0 };
+  async cleanScan(): Promise<CleanReport> {
+    if (isTauri) return invoke("clean_scan");
+    await new Promise((r) => setTimeout(r, 900));
+    return { items: demoClean.filter((i) => i.bytes > 0 || i.needsAdmin), admin: false };
+  },
+  async cleanRun(ids: string[]): Promise<CleanResult> {
+    if (isTauri) return invoke("clean_run", { ids });
+    let freedBytes = 0;
+    let files = 0;
+    demoClean = demoClean.map((i) => {
+      if (!ids.includes(i.id) || i.needsAdmin) return i;
+      const kept = i.open ? Math.round(i.files * 0.1) : 0;
+      freedBytes += i.bytes * (1 - kept / Math.max(1, i.files));
+      files += i.files - kept;
+      return { ...i, bytes: i.bytes * (kept / Math.max(1, i.files)), files: kept };
+    });
+    return { freedBytes: Math.round(freedBytes), files, skipped: 0 };
+  },
+  /** Starts Luna again as administrator, then closes this copy. */
+  async restartAdmin(page: Page): Promise<void> {
+    if (isTauri) return invoke("restart_admin", { page });
   },
   async borderlessWindows(): Promise<WindowInfo[]> {
     if (isTauri) return invoke("borderless_windows");

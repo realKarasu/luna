@@ -87,3 +87,27 @@ export const BORDERLESS_HELP: HelpItem[] = [
     "Press the key again, click Restore, or close the game. A window Luna changed stays that way until then, even if you quit Luna.",
   ],
 ];
+
+// Shown on the Clean page.
+export const CLEAN_HELP: HelpItem[] = [
+  [
+    "What does Luna delete?",
+    "Only files that programs make again by themselves: caches, temporary files, old logs and crash reports. Your documents, downloads, game saves, passwords, browsing history and cookies are never on the list, so you stay signed in everywhere.",
+  ],
+  [
+    "Why does some space stay after cleaning?",
+    "A program that is open keeps some of its files in use, and Windows does not let anyone delete those. Close the browser, Discord or the launcher marked as open, then clean again. Temporary files from the last day also stay, in case a setup is still using them.",
+  ],
+  [
+    "Why do some items need administrator?",
+    "Windows Update downloads, the Windows temp folder and system crash dumps belong to Windows itself. Restart Luna as administrator from this page to clean them; Windows asks for permission first.",
+  ],
+  [
+    "Should I clear the shader cache?",
+    "Only when a game shows graphics glitches, or after a driver update. Games build their shaders again on the next launch, which can stutter for a few minutes, so it is not ticked by default.",
+  ],
+  [
+    "Why does the space fill up again?",
+    "Caches grow back as you use your programs, and that is normal: it is what keeps pages and games loading fast. Cleaning once a month, or when the disk is nearly full, is plenty.",
+  ],
+];

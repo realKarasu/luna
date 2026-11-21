@@ -48,6 +48,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     platform: "windows",
     optimizer: true,
     note: null,
+    startPage: null,
   });
   const [toasts, setToasts] = useState<Toast[]>([]);
   const latest = useRef(settings);

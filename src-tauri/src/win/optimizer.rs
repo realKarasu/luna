@@ -68,14 +68,6 @@ pub struct TweakStatus {
     pub backed_up: bool,
 }
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanResult {
-    pub freed_bytes: u64,
-    pub files: u64,
-    pub skipped: u64,
-}
-
 fn backup_path() -> std::path::PathBuf {
     data_dir().join("optimizer-backup.json")
 }
@@ -517,41 +509,6 @@ pub fn undo_all() -> Vec<String> {
         .filter(|id| file.items.contains_key(**id))
         .filter_map(|id| set(id, false).err().map(|e| format!("{id}: {e}")))
         .collect()
-}
-
-/// Deletes files older than one day from the user's %TEMP% folder.
-pub fn clean_temp() -> CleanResult {
-    let mut res = CleanResult { freed_bytes: 0, files: 0, skipped: 0 };
-    let root = std::env::temp_dir();
-    let cutoff = std::time::SystemTime::now() - std::time::Duration::from_secs(24 * 60 * 60);
-    let mut stack = vec![root];
-    while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
-            let ft = meta.file_type();
-            if ft.is_symlink() {
-                continue; // never follow links out of %TEMP%
-            }
-            if ft.is_dir() {
-                stack.push(path);
-                continue;
-            }
-            let old = meta.modified().map(|m| m < cutoff).unwrap_or(false);
-            if !old {
-                continue;
-            }
-            let size = meta.len();
-            if std::fs::remove_file(&path).is_ok() {
-                res.freed_bytes += size;
-                res.files += 1;
-            } else {
-                res.skipped += 1;
-            }
-        }
-    }
-    res
 }
 
 #[cfg(test)]

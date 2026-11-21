@@ -45,6 +45,7 @@ Once installed, Luna keeps itself up to date: new versions are downloaded and ch
 - **Borderless window** (Windows). Takes the frame off a game in windowed mode, keeping its size or filling the screen, by key or by itself for the games you pick.
 - **Look wheel.** Hold a key, point at a preset, let go: the look changes instantly.
 - **Optimizer** (Windows). Ten common gaming tweaks in one place, each one with an undo.
+- **Clean** (Windows). Finds the caches, temporary files, old logs and crash reports that pile up on a PC and deletes the ones you tick.
 - **Five styles.** Change the whole look of the app: Nebula, Observatoire, Calibration, Terrain or Studio.
 
 Luna never opens, reads or changes a game's files or memory. It only uses the screen settings your system offers to every program, like night light tools do.
@@ -112,6 +113,7 @@ Luna is not signed with a paid certificate, so SmartScreen warns about it the fi
 | Ultra Zoom | ✓ | | |
 | Borderless window | ✓ | | |
 | Optimizer | ✓ | | |
+| Clean | ✓ | | |
 | Automatic updates | ✓ | ✓ | ✓ (AppImage) |
 
 The empty boxes are not missing work: they rely on features that only Windows offers to ordinary programs, like the full-screen colour filter and the magnifier. Luna hides what your system cannot do instead of showing buttons that do nothing.
@@ -165,7 +167,16 @@ Only to check this repository for a new version, which you can turn off in Setti
 ### Optimizer (Windows)
 - **Optimize all** and **Undo all**, plus 10 switches: High performance power plan, Game Mode, background recording off, optimizations for windowed games, mouse acceleration off, Sticky Keys popup off, notifications off, background apps off, transparency effects off and window animations off.
 - Every switch reads the current state and backs it up before changing anything, so Undo restores exactly what you had. Only per-user settings are changed.
-- **Clean temp files** deletes only files older than one day from your temp folder and reports the space freed.
+
+### Clean (Windows)
+- One scan measures what can go, grouped as Windows, Browsers, Apps and games, and Developer tools, with the size of each item.
+- **Windows**: temporary files older than a day, crash dumps and error reports, Windows Update downloads, old Windows logs, the thumbnail cache and the Recycle Bin.
+- **Browsers**: page and picture caches of Chrome, Edge, Brave, Vivaldi, Opera, Opera GX, Arc and Firefox, for every profile. History, passwords and cookies stay.
+- **Apps and games**: Discord, Steam, Epic Games Launcher, Battle.net, Spotify, Teams and Slack caches, and the NVIDIA, AMD and Intel shader caches.
+- **Developer tools**: npm, Yarn, pip, NuGet, Cargo and Go download caches.
+- The safe items are ticked by default; the Recycle Bin, shader caches, thumbnails and package caches are left for you to choose. Files a program holds open are skipped, and Luna says which program is open.
+- Items that belong to Windows need administrator: **Restart as administrator** reopens Luna on the Clean page after Windows asks for permission.
+- Luna never follows links or junctions out of a folder, and never touches documents, downloads or game saves.
 
 ### Styles and settings
 - Five styles that change the whole look of the app, each with its own fonts and one detail of its own: **Nebula** (animated night sky, or your own picture or GIF), **Observatoire** (graphite night, tick marks under every slider), **Calibration** (light measuring lab, grey step wedge under the preview), **Terrain** (phosphor green, sight brackets, segmented sliders) and **Studio** (dense grading suite with a live histogram).
@@ -195,6 +206,7 @@ Only to check this repository for a new version, which you can turn off in Setti
 | Binds and look wheel | Low-level keyboard and mouse hooks | Polling, needs Accessibility | Polling the X server |
 | Start with the computer | `Run` registry key | LaunchAgent | XDG autostart entry |
 | Optimizer | Per-user registry, `powercfg`, `SystemParametersInfo` | | |
+| Clean | File system, `SHQueryRecycleBinW`, `SHEmptyRecycleBinW` | | |
 | Updates | NSIS installer | `.app` bundle | AppImage |
 
 Windows limits how far a gamma ramp may move from neutral for programs without administrator rights. When a curve is refused, Luna applies the strongest version Windows accepts and tells you how much of it is active. macOS and Linux have no such limit.

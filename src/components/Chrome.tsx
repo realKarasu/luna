@@ -56,6 +56,7 @@ const MENU: { id: Page; label: string; icon: string }[] = [
   { id: "zoom", label: "Zoom", icon: "zoom" },
   { id: "borderless", label: "Borderless", icon: "borderless" },
   { id: "optimizer", label: "Optimizer", icon: "optimizer" },
+  { id: "clean", label: "Clean", icon: "broom" },
 ];
 const GENERAL: { id: Page; label: string; icon: string }[] = [
   { id: "binds", label: "Binds", icon: "binds" },
@@ -83,7 +84,7 @@ export function Sidebar({ page, onPage }: { page: Page; onPage: (p: Page) => voi
       <nav className="nav-groups" aria-label="Sections">
         <div className="nav-group">
           <div className="nav-title">Menu</div>
-          {MENU.filter((m) => (m.id !== "optimizer" || info.optimizer) && ((m.id !== "zoom" && m.id !== "borderless") || info.platform === "windows")).map(item)}
+          {MENU.filter((m) => (m.id !== "optimizer" || info.optimizer) && (!["zoom", "borderless", "clean"].includes(m.id) || info.platform === "windows")).map(item)}
         </div>
         <div className="nav-group">
           <div className="nav-title">General</div>

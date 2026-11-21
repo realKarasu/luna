@@ -172,6 +172,8 @@ export interface AppState {
   optimizer: boolean;
   /** Something the user must know or do on this system, or null. */
   note: string | null;
+  /** The page to open first, after Luna restarted itself as administrator. */
+  startPage: string | null;
 }
 
 export interface UpdateStatus {
@@ -198,10 +200,33 @@ export interface TweakStatus {
   backedUp: boolean;
 }
 
+export type CleanGroup = "system" | "browsers" | "apps" | "dev";
+
+/** One kind of leftover on the Clean page and how much of it there is. */
+export interface CleanItem {
+  id: string;
+  group: CleanGroup;
+  title: string;
+  desc: string;
+  bytes: number;
+  files: number;
+  /** Ticked when the page opens. */
+  suggested: boolean;
+  /** Only Luna running as administrator can clean it, and it does not right now. */
+  needsAdmin: boolean;
+  /** Name of the open program that keeps some of these files in use. */
+  open: string | null;
+}
+
+export interface CleanReport {
+  items: CleanItem[];
+  admin: boolean;
+}
+
 export interface CleanResult {
   freedBytes: number;
   files: number;
   skipped: number;
 }
 
-export type Page = "display" | "presets" | "crosshair" | "zoom" | "borderless" | "optimizer" | "binds" | "theme" | "settings";
+export type Page = "display" | "presets" | "crosshair" | "zoom" | "borderless" | "optimizer" | "clean" | "binds" | "theme" | "settings";

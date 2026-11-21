@@ -1,7 +1,8 @@
 //! What macOS and Linux share: input through polling, overlay windows through Tauri, and the
-//! Windows-only features (colour matrix, zoom, optimizer, borderless windows) as empty stand-ins.
+//! Windows-only features (colour matrix, zoom, optimizer, borderless windows, cleaning) as empty stand-ins.
 
 pub mod borderless;
+pub mod cleaner;
 pub mod hooks;
 pub mod mag;
 pub mod optimizer;
@@ -20,3 +21,9 @@ pub fn launcher() -> Result<std::path::PathBuf, String> {
     }
     std::env::current_exe().map_err(|e| e.to_string())
 }
+
+pub fn relaunch_admin(_page: &str) -> Result<(), String> {
+    Err("Only Luna on Windows can restart as administrator.".into())
+}
+
+pub fn wait_for_exit(_pid: u32) {}

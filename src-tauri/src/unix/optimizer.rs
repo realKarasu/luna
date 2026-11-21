@@ -11,14 +11,6 @@ pub struct TweakStatus {
     pub backed_up: bool,
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct CleanResult {
-    pub freed_bytes: u64,
-    pub files: u64,
-    pub skipped: u64,
-}
-
 const NOT_HERE: &str = "The optimizer only exists on Windows.";
 
 pub fn status() -> Vec<TweakStatus> {
@@ -35,8 +27,4 @@ pub fn optimize_all() -> Vec<String> {
 
 pub fn undo_all() -> Vec<String> {
     vec![NOT_HERE.into()]
-}
-
-pub fn clean_temp() -> CleanResult {
-    CleanResult::default()
 }
