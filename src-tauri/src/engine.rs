@@ -10,12 +10,12 @@
 use crate::color::{self, ColorParams, Holo};
 use crate::games::ActiveGame;
 use crate::gamma::{self, Ramp, Tone};
-use crate::settings::{self, Crosshair, DisplayMode, GameProfile, Settings};
+use crate::settings::{self, Crosshair, DisplayMode, FpsSettings, GameProfile, Settings};
 use crate::input::HookEvent;
 use crate::plat::display::{self, MonitorInfo};
 use crate::plat::vib::Drivers;
 use crate::plat::window::{self, Overlay};
-use crate::plat::{borderless, fps, games as plat_games, hooks, mag, potato};
+use crate::plat::{borderless, fps, games as plat_games, hooks, mag, potato, sysmon};
 use crate::vibrance::{self, VibranceBackend};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -29,6 +29,9 @@ pub const WHEEL_SIZE: i32 = 560;
 /// FPS counter size on a 1080p screen, larger on bigger ones.
 pub const FPS_WIDTH: i32 = 200;
 pub const FPS_HEIGHT: i32 = 76;
+/// Added under the numbers for the frame time graph, and for the system lines.
+const FPS_GRAPH: i32 = 42;
+const FPS_DETAILS: i32 = 42;
 
 static ENGINE: OnceLock<Mutex<Engine>> = OnceLock::new();
 
@@ -122,8 +125,12 @@ struct GameRun {
     exe: String,
     name: String,
     monitor: String,
-    /// The profile changed the screen mode.
+    /// The profile changed the screen mode (files written before 0.8).
+    #[serde(default)]
     mode: bool,
+    /// Screens whose mode the profile changed, in the order they go back.
+    #[serde(default)]
+    screens: Vec<String>,
     potato: bool,
     look: Look,
 }
@@ -134,8 +141,10 @@ fn game_path() -> std::path::PathBuf {
 
 /// What the games thread does after a look at the running programs.
 pub enum GameStep {
-    Started { exe: String, monitor: String, mode: Option<DisplayMode>, potato: bool },
-    Ended { monitor: String, mode: bool, potato: bool },
+    /// `modes` in the order to set them: the other screens, then the game's own.
+    Started { exe: String, modes: Vec<(String, DisplayMode)>, potato: bool },
+    /// `screens` in the order to put them back: the game's own, then the others.
+    Ended { screens: Vec<String>, potato: bool },
     Same,
 }
 
@@ -290,8 +299,11 @@ impl Engine {
             std::fs::read_to_string(game_path()).ok().and_then(|t| serde_json::from_str(&t).ok());
         if let Some(run) = left {
             e.put_back_look(&run.look);
-            if run.mode {
+            if run.mode && run.screens.is_empty() {
                 plat_games::reset_mode(&run.monitor);
+            }
+            for s in &run.screens {
+                plat_games::reset_mode(s);
             }
             e.dirty = true;
         }
@@ -511,11 +523,12 @@ impl Engine {
     /// The FPS counter in its corner, and the event tracing behind it on or off.
     fn apply_fps(&self) {
         let f = &self.settings.fps;
-        fps::set_enabled(f.enabled);
+        fps::set_enabled(f.enabled, f.graph);
+        sysmon::set_enabled(f.enabled && f.details);
         let Some(win) = &self.fps_win else { return };
         match self.monitor_or_primary(&f.monitor) {
             Some(m) if f.enabled => {
-                let (x, y, w, h) = fps_rect(&m, &f.corner);
+                let (x, y, w, h) = fps_rect(&m, f);
                 win.place(x, y, w, h, true);
             }
             _ => win.place(0, 0, 0, 0, false),
@@ -622,7 +635,7 @@ impl Engine {
             self.put_back_look(&run.look);
             let _ = std::fs::remove_file(game_path());
             self.changed_here();
-            return GameStep::Ended { monitor: run.monitor, mode: run.mode, potato: run.potato };
+            return GameStep::Ended { screens: run.screens, potato: run.potato };
         }
         let Some(p) = self
             .settings
@@ -638,11 +651,23 @@ impl Engine {
         let look = self.put_on_look(&p, &monitor);
         let exe = p.exe.to_lowercase();
         let name = if p.name.trim().is_empty() { p.exe.clone() } else { p.name.clone() };
-        let run = GameRun { exe: exe.clone(), name, monitor: monitor.clone(), mode: p.mode.is_some(), potato: p.potato, look };
+        // The other screens first: the game's own mode may only exist once they are slower.
+        let mut modes: Vec<(String, DisplayMode)> = Vec::new();
+        for o in &p.other_modes {
+            let known = self.monitors.iter().any(|m| m.id == o.monitor);
+            if known && o.monitor != monitor && !modes.iter().any(|(id, _)| *id == o.monitor) {
+                modes.push((o.monitor.clone(), o.mode));
+            }
+        }
+        if let Some(mode) = p.mode {
+            modes.push((monitor.clone(), mode));
+        }
+        let screens: Vec<String> = modes.iter().rev().map(|(id, _)| id.clone()).collect();
+        let run = GameRun { exe: exe.clone(), name, monitor, mode: false, screens, potato: p.potato, look };
         let _ = settings::write_json_atomic(&game_path(), &run);
         self.game = Some(run);
         self.changed_here();
-        GameStep::Started { exe, monitor, mode: p.mode, potato: p.potato }
+        GameStep::Started { exe, modes, potato: p.potato }
     }
 
     /// Applies a profile's gamma, colour and crosshair, and returns what was there before.
@@ -968,10 +993,12 @@ impl Engine {
 }
 
 /// Where the FPS counter sits on a screen, in physical pixels.
-pub fn fps_rect(m: &MonitorInfo, corner: &str) -> (i32, i32, i32, i32) {
+pub fn fps_rect(m: &MonitorInfo, f: &FpsSettings) -> (i32, i32, i32, i32) {
+    let corner = f.corner.as_str();
     let scale = (m.height as f64 / 1080.0).max(1.0);
+    let tall = FPS_HEIGHT + if f.graph { FPS_GRAPH } else { 0 } + if f.details { FPS_DETAILS } else { 0 };
     let w = (FPS_WIDTH as f64 * scale).round() as i32;
-    let h = (FPS_HEIGHT as f64 * scale).round() as i32;
+    let h = (tall as f64 * scale).round() as i32;
     let pad = (16.0 * scale).round() as i32;
     let x = if corner.ends_with("Right") { m.x + m.width - w - pad } else { m.x + pad };
     let y = if corner.starts_with("bottom") { m.y + m.height - h - pad } else { m.y + pad };

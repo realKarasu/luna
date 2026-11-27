@@ -141,6 +141,15 @@ pub struct DisplayMode {
     pub hz: i32,
 }
 
+/// A mode for one more screen while a game runs.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ScreenMode {
+    /// Monitor device name.
+    pub monitor: String,
+    pub mode: DisplayMode,
+}
+
 /// What Luna changes while one game runs. Everything goes back when it closes.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -160,6 +169,9 @@ pub struct GameProfile {
     pub crosshair: String,
     /// Screen mode while the game runs, none = leave it.
     pub mode: Option<DisplayMode>,
+    /// Modes for the other screens, set before the game's own screen. A fast mode on one
+    /// screen can need a slower one on another.
+    pub other_modes: Vec<ScreenMode>,
     /// Potato Mode while the game runs.
     pub potato: bool,
 }
@@ -175,6 +187,7 @@ impl Default for GameProfile {
             color: String::new(),
             crosshair: String::new(),
             mode: None,
+            other_modes: Vec::new(),
             potato: false,
         }
     }
@@ -189,11 +202,15 @@ pub struct FpsSettings {
     pub corner: String,
     /// Monitor device name, empty = primary.
     pub monitor: String,
+    /// A graph of the last frame times under the numbers.
+    pub graph: bool,
+    /// Processor, graphics card and memory under the numbers.
+    pub details: bool,
 }
 
 impl Default for FpsSettings {
     fn default() -> Self {
-        FpsSettings { enabled: false, corner: "topLeft".into(), monitor: String::new() }
+        FpsSettings { enabled: false, corner: "topLeft".into(), monitor: String::new(), graph: false, details: false }
     }
 }
 

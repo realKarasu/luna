@@ -122,8 +122,20 @@ export const GAMES_HELP: HelpItem[] = [
     "Only the modes the screen offers are listed. A game in exclusive full screen sets its own resolution and wins: use windowed or borderless mode, or pick the same mode in the game.",
   ],
   [
+    "Why change another screen for a game?",
+    "Some graphics cards cannot run two fast screens at full speed together, so the best mode of one screen only appears when the other runs slower. Under Other screens, pick the slower mode: Luna sets it first, then the game's screen, and puts both back when the game closes. Modes marked not offered now are tried once the other screens have changed.",
+  ],
+  [
+    "The installed games list picked the wrong program.",
+    "Luna reads where Steam, Epic and GOG installed each game and guesses which program in the folder is the game. If a profile never starts, delete it and add the game while it is open, or type its program name. Games from other launchers are added that way too.",
+  ],
+  [
     "The FPS counter shows dashes.",
-    "It counts the game in front, and only Direct3D 9 to 12 games. Vulkan and OpenGL games are not counted yet. Windows also asks for Luna to run as administrator, and an overlay cannot show over exclusive full screen.",
+    "It counts the game in front. Direct3D 9 to 12 games are counted from their own frames, Vulkan and OpenGL games from what Windows puts on screen. Windows asks for Luna to run as administrator for this, and an overlay cannot show over exclusive full screen.",
+  ],
+  [
+    "What do the PC details show?",
+    "Processor and graphics card load, the card's temperature, and the video memory and memory in use, read every second. They work without administrator. The temperature comes from the AMD or NVIDIA driver; processor temperature is not shown because Windows does not share it without a driver.",
   ],
   [
     "Is Potato Mode safe?",

@@ -1,7 +1,8 @@
 //! Frames per second of the game in front, read the way frame counters do it: Windows
 //! reports every Present call of Direct3D 9 to 12 through Event Tracing, so Luna never
 //! touches the game itself. Reading those reports needs Luna to run as administrator.
-//! Vulkan and OpenGL games present through other paths and are not counted.
+//! Vulkan and OpenGL games do not go through Direct3D: for them Luna counts the presents
+//! the graphics kernel reports for the process, used only when Direct3D reported none.
 
 use crate::games::FpsReading;
 use std::collections::{HashMap, VecDeque};
@@ -11,7 +12,8 @@ use windows::core::{GUID, PCWSTR, PWSTR};
 use windows::Win32::Foundation::{ERROR_ACCESS_DENIED, ERROR_ALREADY_EXISTS, ERROR_SUCCESS, WIN32_ERROR};
 use windows::Win32::System::Diagnostics::Etw::{
     CloseTrace, ControlTraceW, EnableTraceEx2, OpenTraceW, ProcessTrace, StartTraceW, CONTROLTRACE_HANDLE,
-    EVENT_CONTROL_CODE_ENABLE_PROVIDER, EVENT_RECORD, EVENT_TRACE_CONTROL_STOP, EVENT_TRACE_LOGFILEW,
+    ENABLE_TRACE_PARAMETERS, ENABLE_TRACE_PARAMETERS_VERSION_2, EVENT_CONTROL_CODE_ENABLE_PROVIDER,
+    EVENT_FILTER_DESCRIPTOR, EVENT_FILTER_TYPE_EVENT_ID, EVENT_RECORD, EVENT_TRACE_CONTROL_STOP, EVENT_TRACE_LOGFILEW,
     EVENT_TRACE_PROPERTIES, EVENT_TRACE_REAL_TIME_MODE, PROCESSTRACE_HANDLE, PROCESS_TRACE_MODE_EVENT_RECORD,
     PROCESS_TRACE_MODE_REAL_TIME, TRACE_LEVEL_INFORMATION, WNODE_FLAG_TRACED_GUID,
 };
@@ -22,12 +24,21 @@ const SESSION: &str = "Luna FPS";
 const DXGI: GUID = GUID::from_u128(0xCA11C036_0102_4A2D_A6AD_F03CFED5D3C9);
 /// Microsoft-Windows-D3D9: event 1 is the start of a Present.
 const D3D9: GUID = GUID::from_u128(0x783ACA0A_790E_4D7F_8451_AA850511C6B9);
+/// Microsoft-Windows-DxgKrnl: event 184 is a present reaching the graphics kernel, whatever
+/// the game draws with.
+const DXGK: GUID = GUID::from_u128(0x802EC45A_1E99_4B83_9920_87C98277BA9D);
+const DXGK_PRESENT: u16 = 184;
+/// Its Base and Present keywords.
+const DXGK_KEYWORDS: u64 = 0x800_0001;
+/// Frame times sent for the graph.
+const GRAPH_FRAMES: usize = 90;
 /// Our own session, so it can be found and stopped by name.
 const SESSION_GUID: GUID = GUID::from_u128(0x6c756e61_0f95_4d2b_9a7e_3f1c0e5a9b21);
 /// How long frame times are kept, in seconds.
 const KEEP_SECS: f64 = 5.0;
 
 static WANT: AtomicBool = AtomicBool::new(false);
+static GRAPH: AtomicBool = AtomicBool::new(false);
 static FREQ: LazyLock<i64> = LazyLock::new(|| {
     let mut f = 0i64;
     unsafe {
@@ -36,7 +47,15 @@ static FREQ: LazyLock<i64> = LazyLock::new(|| {
     f.max(1)
 });
 /// Present times per process, in performance counter ticks.
-static STAMPS: LazyLock<Mutex<HashMap<u32, VecDeque<i64>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+#[derive(Default)]
+struct Stamps {
+    /// Reported by Direct3D.
+    api: HashMap<u32, VecDeque<i64>>,
+    /// Reported by the graphics kernel.
+    kernel: HashMap<u32, VecDeque<i64>>,
+}
+
+static STAMPS: LazyLock<Mutex<Stamps>> = LazyLock::new(|| Mutex::new(Stamps::default()));
 static RUN: LazyLock<Mutex<Run>> = LazyLock::new(|| Mutex::new(Run::default()));
 
 #[derive(Default)]
@@ -66,12 +85,14 @@ unsafe extern "system" fn on_event(rec: *mut EVENT_RECORD) {
     let Some(rec) = (unsafe { rec.as_ref() }) else { return };
     let h = &rec.EventHeader;
     let id = h.EventDescriptor.Id;
-    let present = (h.ProviderId == DXGI && id == 42) || (h.ProviderId == D3D9 && id == 1);
-    if !present {
+    let api = (h.ProviderId == DXGI && id == 42) || (h.ProviderId == D3D9 && id == 1);
+    let kernel = h.ProviderId == DXGK && id == DXGK_PRESENT;
+    if !api && !kernel {
         return;
     }
     let keep = (KEEP_SECS * *FREQ as f64) as i64;
-    let mut map = lock(&STAMPS);
+    let mut stamps = lock(&STAMPS);
+    let map = if api { &mut stamps.api } else { &mut stamps.kernel };
     let list = map.entry(h.ProcessId).or_default();
     list.push_back(h.TimeStamp);
     while list.front().is_some_and(|&t| h.TimeStamp - t > keep) {
@@ -154,6 +175,7 @@ fn start_session() -> Result<PROCESSTRACE_HANDLE, &'static str> {
         stop_by_name();
         return Err("error");
     }
+    enable_kernel_presents(handle);
     let mut logger = name.clone();
     let mut log = EVENT_TRACE_LOGFILEW { LoggerName: PWSTR(logger.as_mut_ptr()), ..Default::default() };
     log.Anonymous1.ProcessTraceMode = PROCESS_TRACE_MODE_REAL_TIME | PROCESS_TRACE_MODE_EVENT_RECORD;
@@ -177,19 +199,53 @@ fn start_session() -> Result<PROCESSTRACE_HANDLE, &'static str> {
     Ok(trace)
 }
 
+/// The graphics kernel reports a lot; only its present event is let through. When Windows
+/// refuses the filter the provider stays off and only Direct3D games are counted.
+fn enable_kernel_presents(handle: CONTROLTRACE_HANDLE) {
+    // EVENT_FILTER_EVENT_ID: FilterIn and Reserved (one byte each), Count, then the event ids.
+    let mut ids: [u16; 3] = [1, 1, DXGK_PRESENT];
+    let mut filter = EVENT_FILTER_DESCRIPTOR {
+        Ptr: ids.as_mut_ptr() as u64,
+        Size: std::mem::size_of_val(&ids) as u32,
+        Type: EVENT_FILTER_TYPE_EVENT_ID,
+    };
+    let params = ENABLE_TRACE_PARAMETERS {
+        Version: ENABLE_TRACE_PARAMETERS_VERSION_2,
+        EnableProperty: 0,
+        ControlFlags: 0,
+        SourceId: SESSION_GUID,
+        EnableFilterDesc: &mut filter,
+        FilterDescCount: 1,
+    };
+    unsafe {
+        let _ = EnableTraceEx2(
+            handle,
+            &DXGK,
+            EVENT_CONTROL_CODE_ENABLE_PROVIDER.0,
+            TRACE_LEVEL_INFORMATION as u8,
+            DXGK_KEYWORDS,
+            0,
+            0,
+            Some(&params),
+        );
+    }
+}
+
 fn stop_session(run: &mut Run) {
     if let Some(trace) = run.trace.take() {
         stop_by_name();
         unsafe {
             let _ = CloseTrace(trace);
         }
-        lock(&STAMPS).clear();
+        *lock(&STAMPS) = Stamps::default();
     }
 }
 
-/// The counter is on in the settings. The session starts and stops in `poll`.
-pub fn set_enabled(on: bool) {
+/// The counter is on in the settings, with or without its graph. The session starts and
+/// stops in `poll`.
+pub fn set_enabled(on: bool, graph: bool) {
     WANT.store(on, Ordering::Relaxed);
+    GRAPH.store(graph, Ordering::Relaxed);
 }
 
 /// Stops the session, for quitting.
@@ -229,17 +285,19 @@ pub fn poll() -> Option<FpsReading> {
     let exe = super::games::exe_of(pid);
     let freq = *FREQ as f64;
     let t = now();
-    let mut map = lock(&STAMPS);
+    let mut stamps = lock(&STAMPS);
     let keep = (KEEP_SECS * freq) as i64;
-    map.retain(|_, list| list.back().is_some_and(|&last| t - last < keep));
-    let Some(list) = map.get(&pid) else {
+    stamps.api.retain(|_, list| list.back().is_some_and(|&last| t - last < keep));
+    stamps.kernel.retain(|_, list| list.back().is_some_and(|&last| t - last < keep));
+    // Direct3D's own count when there is one, the kernel's for Vulkan and OpenGL.
+    let Some(list) = stamps.api.get(&pid).or_else(|| stamps.kernel.get(&pid)) else {
         return Some(FpsReading { state: "running".into(), exe, ..Default::default() });
     };
-    Some(measure(list, t, freq, exe))
+    Some(measure(list, t, freq, exe, GRAPH.load(Ordering::Relaxed)))
 }
 
 /// Frames in the last second, the average frame time and the 1% low over five seconds.
-fn measure(list: &VecDeque<i64>, now: i64, freq: f64, exe: String) -> FpsReading {
+fn measure(list: &VecDeque<i64>, now: i64, freq: f64, exe: String, graph: bool) -> FpsReading {
     let mut r = FpsReading { state: "running".into(), exe, ..Default::default() };
     let Some(&last) = list.back() else { return r };
     // Nothing for a while: the game is paused or in a loading screen.
@@ -255,6 +313,10 @@ fn measure(list: &VecDeque<i64>, now: i64, freq: f64, exe: String) -> FpsReading
         }
     }
     let mut gaps: Vec<f64> = list.iter().zip(list.iter().skip(1)).map(|(a, b)| (b - a) as f64 / freq).collect();
+    if graph {
+        let from = gaps.len().saturating_sub(GRAPH_FRAMES);
+        r.gaps = gaps[from..].iter().map(|g| (g * 1000.0) as f32).collect();
+    }
     if gaps.len() >= 10 {
         gaps.sort_by(|a, b| b.total_cmp(a));
         let worst = gaps[(gaps.len() / 100).min(gaps.len() - 1)];
@@ -274,7 +336,9 @@ mod tests {
         let freq = 1000.0;
         let list: VecDeque<i64> = (0..300).map(|i| i * 1000 / 60).collect();
         let now = *list.back().unwrap();
-        let r = measure(&list, now, freq, "game.exe".into());
+        let r = measure(&list, now, freq, "game.exe".into(), true);
+        assert_eq!(r.gaps.len(), GRAPH_FRAMES);
+        assert!((r.gaps[0] - 16.7).abs() < 1.1, "{}", r.gaps[0]);
         assert!((r.fps - 60.0).abs() < 1.5, "{}", r.fps);
         assert!((r.ms - 16.7).abs() < 0.5, "{}", r.ms);
         assert!(r.low > 55.0 && r.low < 65.0, "{}", r.low);
@@ -283,7 +347,7 @@ mod tests {
     #[test]
     fn a_paused_game_shows_nothing() {
         let list: VecDeque<i64> = (0..60).map(|i| i * 16).collect();
-        let r = measure(&list, 10_000, 1000.0, String::new());
+        let r = measure(&list, 10_000, 1000.0, String::new(), false);
         assert_eq!(r.fps, 0.0);
     }
 }

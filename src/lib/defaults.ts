@@ -98,7 +98,7 @@ export function defaultSettings(): Settings {
     borderless: { fit: { mode: "stay", monitor: "", width: 1920, height: 1080 }, games: [] },
     binds: { zoom: null, nvg: null, tuning: null, color: [null, null, null, null], wheel: { vk: 0x76, label: "F7" }, borderless: null, fps: null, potato: null },
     games: [],
-    fps: { enabled: false, corner: "topLeft", monitor: "" },
+    fps: { enabled: false, corner: "topLeft", monitor: "", graph: false, details: false },
     colorKeys: ["", "", "", ""],
     wheelPresets: [],
     gammaPresets: [],
@@ -127,6 +127,7 @@ export const DEFAULT_PROFILE: GameProfile = {
   color: "",
   crosshair: "",
   mode: null,
+  otherModes: [],
   potato: false,
 };
 

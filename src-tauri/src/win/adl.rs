@@ -26,6 +26,17 @@ type AdapterInfoGet = unsafe extern "C" fn(Ctx, *mut AdapterInfo, i32) -> i32;
 type DisplayInfoGet = unsafe extern "C" fn(Ctx, i32, *mut i32, *mut *mut DisplayInfo, i32) -> i32;
 type ColorGet = unsafe extern "C" fn(Ctx, i32, i32, i32, *mut i32, *mut i32, *mut i32, *mut i32, *mut i32) -> i32;
 type ColorSet = unsafe extern "C" fn(Ctx, i32, i32, i32, i32) -> i32;
+type PmLogGet = unsafe extern "C" fn(Ctx, i32, *mut PmLogData) -> i32;
+
+/// ADL_PMLOG_TEMPERATURE_EDGE: the temperature the driver shows for the card.
+const PMLOG_TEMPERATURE_EDGE: usize = 8;
+
+/// ADL `ADLPMLogDataOutput`: for each sensor, whether the card has it and its value.
+#[repr(C)]
+struct PmLogData {
+    size: i32,
+    sensors: [[i32; 2]; 256],
+}
 
 /// ADL `AdapterInfo` as laid out on Windows.
 #[repr(C)]
@@ -106,6 +117,8 @@ pub struct AdlLib {
     display_info: DisplayInfoGet,
     color_get: ColorGet,
     color_set: ColorSet,
+    /// Missing on drivers from before 2020.
+    pmlog: Option<PmLogGet>,
 }
 
 // The context is only used behind the engine mutex, one call at a time.
@@ -146,7 +159,9 @@ impl AdlLib {
             if create(adl_malloc, 1, &mut ctx) != ADL_OK || ctx.is_null() {
                 return None;
             }
-            Some(Arc::new(AdlLib { ctx, destroy, num_adapters, adapter_info, display_info, color_get, color_set }))
+            let pmlog: Option<PmLogGet> =
+                proc_of(lib, s!("ADL2_New_QueryPMLogData_Get")).map(|p| std::mem::transmute(p));
+            Some(Arc::new(AdlLib { ctx, destroy, num_adapters, adapter_info, display_info, color_get, color_set, pmlog }))
         }
     }
 
@@ -166,6 +181,33 @@ impl AdlLib {
             }
             list
         }
+    }
+
+    /// Temperature of one adapter in degrees Celsius, None when the driver does not say.
+    pub fn temperature_of(&self, adapter: i32) -> Option<f32> {
+        let get = self.pmlog?;
+        let mut data = PmLogData { size: std::mem::size_of::<PmLogData>() as i32, sensors: [[0; 2]; 256] };
+        if unsafe { get(self.ctx, adapter, &mut data) } != ADL_OK {
+            return None;
+        }
+        let [supported, value] = data.sensors[PMLOG_TEMPERATURE_EDGE];
+        // A value outside what a card can be is a different sensor layout: not shown.
+        (supported != 0 && (1..=125).contains(&value)).then_some(value as f32)
+    }
+
+    /// The first adapter that reports a temperature.
+    pub fn thermal_adapter(&self) -> Option<i32> {
+        let mut seen = Vec::new();
+        for a in self.adapters() {
+            if a.present == 0 || seen.contains(&a.adapter_index) {
+                continue;
+            }
+            seen.push(a.adapter_index);
+            if self.temperature_of(a.adapter_index).is_some() {
+                return Some(a.adapter_index);
+            }
+        }
+        None
     }
 
     /// Connected, mapped displays of one ADL adapter: their display indexes.

@@ -39,6 +39,26 @@ pub struct FpsReading {
     /// 1% low.
     pub low: f32,
     pub exe: String,
+    /// The last frame times in milliseconds, oldest first, when the graph is on.
+    pub gaps: Vec<f32>,
+    /// Processor, graphics card and memory, when the details are on.
+    pub sys: Option<SysReading>,
+}
+
+/// What the PC is doing. A value Windows or the driver does not give stays empty.
+#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SysReading {
+    /// Processor load, 0 to 100.
+    pub cpu: Option<f32>,
+    /// Graphics card load, 0 to 100.
+    pub gpu: Option<f32>,
+    /// Graphics card temperature in degrees Celsius.
+    pub gpu_temp: Option<f32>,
+    /// Video memory in use, in GB.
+    pub vram: Option<f32>,
+    /// Memory in use, in GB.
+    pub ram: Option<f32>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -96,9 +116,9 @@ pub fn start(app: AppHandle) {
                 (e.game_step(&running), keep)
             };
             match step {
-                GameStep::Started { exe, monitor, mode, potato } => {
-                    if let Some(mode) = mode {
-                        if let Err(err) = plat::games::set_mode(&monitor, &mode) {
+                GameStep::Started { exe, modes, potato } => {
+                    for (i, (monitor, mode)) in modes.iter().enumerate() {
+                        if let Err(err) = plat::games::set_mode(monitor, mode, i > 0) {
                             let _ = watch.emit("game-error", err);
                         }
                     }
@@ -107,10 +127,8 @@ pub fn start(app: AppHandle) {
                     }
                     let _ = watch.emit("game-changed", status());
                 }
-                GameStep::Ended { monitor, mode, potato } => {
-                    if mode {
-                        plat::games::restore_mode(&monitor);
-                    }
+                GameStep::Ended { screens, potato } => {
+                    plat::games::restore_modes(&screens);
                     if potato {
                         plat::potato::set_game(None, &keep);
                     }
@@ -128,9 +146,20 @@ pub fn start(app: AppHandle) {
 
     let _ = std::thread::Builder::new().name("luna-fps".into()).spawn(move || {
         let mut shown = String::from("off");
+        let mut sampler = plat::sysmon::Sampler::default();
+        let mut sys = None;
+        let mut n: u64 = 0;
         loop {
             std::thread::sleep(Duration::from_millis(250));
-            let reading = plat::fps::poll();
+            let mut reading = plat::fps::poll();
+            // The system numbers move slowly: once a second is enough.
+            if n % 4 == 0 {
+                sys = sampler.sample();
+            }
+            n += 1;
+            if let Some(r) = &mut reading {
+                r.sys = sys.clone();
+            }
             *LAST_FPS.lock().unwrap_or_else(|e| e.into_inner()) = reading.clone();
             let state = reading.as_ref().map_or("off", |r| r.state.as_str()).to_string();
             if let Some(r) = &reading {

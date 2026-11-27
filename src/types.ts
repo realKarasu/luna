@@ -76,7 +76,21 @@ export interface GameProfile {
   /** "", "off", "on", or "slot0" to "slot7". */
   crosshair: string;
   mode: DisplayMode | null;
+  /** Modes for the other screens while the game runs, set before the game's own screen. */
+  otherModes: ScreenMode[];
   potato: boolean;
+}
+
+export interface ScreenMode {
+  monitor: string;
+  mode: DisplayMode;
+}
+
+/** A game a store installed on this PC. */
+export interface InstalledGame {
+  name: string;
+  exe: string;
+  store: string;
 }
 
 export type FpsCorner = "topLeft" | "topRight" | "bottomLeft" | "bottomRight";
@@ -86,6 +100,19 @@ export interface FpsSettings {
   corner: FpsCorner;
   /** Monitor id, empty = primary. */
   monitor: string;
+  /** Frame time graph under the counter. */
+  graph: boolean;
+  /** Processor, graphics card and memory lines under the counter. */
+  details: boolean;
+}
+
+/** What the PC is doing. A null value could not be read on this PC. */
+export interface SysReading {
+  cpu: number | null;
+  gpu: number | null;
+  gpuTemp: number | null;
+  vram: number | null;
+  ram: number | null;
 }
 
 export interface PotatoStatus {
@@ -103,6 +130,9 @@ export interface FpsReading {
   ms: number;
   low: number;
   exe: string;
+  /** Latest frame times in ms, oldest first, when the graph is on. */
+  gaps: number[];
+  sys: SysReading | null;
 }
 
 export interface GamesStatus {

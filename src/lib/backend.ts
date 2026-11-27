@@ -2,7 +2,7 @@
 // small demo backend so the interface can still be explored.
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { AppState, Bind, CleanItem, CleanReport, CleanResult, DisplayMode, Fit, GamesStatus, MonitorInfo, Page, PotatoStatus, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
+import type { AppState, Bind, CleanItem, CleanReport, CleanResult, DisplayMode, Fit, GamesStatus, InstalledGame, MonitorInfo, Page, PotatoStatus, Settings, SharePayload, TweakStatus, UpdateStatus, WindowInfo } from "../types";
 import { defaultSettings } from "./defaults";
 import { decodeShare, encodeShare } from "./sharecode";
 
@@ -297,6 +297,15 @@ export const api = {
   async displayModes(monitor: string): Promise<DisplayMode[]> {
     if (isTauri) return invoke("display_modes", { monitor });
     return monitor.endsWith("2") ? DEMO_MODES.small : DEMO_MODES.big;
+  },
+  /** Games the stores installed on this PC (Steam, Epic and GOG). */
+  async installedGames(): Promise<InstalledGame[]> {
+    if (isTauri) return invoke("installed_games");
+    return [
+      { name: "Ashfall Frontier", exe: "Ashfall-Win64-Shipping.exe", store: "Steam" },
+      { name: "Harbor Lights", exe: "harborlights.exe", store: "Epic" },
+      { name: "Old Keep", exe: "oldkeep.exe", store: "GOG" },
+    ];
   },
   async gamesStatus(): Promise<GamesStatus> {
     if (isTauri) return invoke("games_status");

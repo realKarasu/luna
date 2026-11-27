@@ -2078,8 +2078,19 @@ a.btn {
 }
 
 .game-card.off .game-grid,
+.game-card.off .game-others,
 .game-card.off .game-switches {
   opacity: 0.5;
+}
+
+.game-others {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.game-others-title {
+  margin-bottom: 8px;
 }
 
 .game-grid {

@@ -12,11 +12,11 @@ pub fn modes(_device: &str) -> Vec<DisplayMode> {
     Vec::new()
 }
 
-pub fn set_mode(_device: &str, _mode: &DisplayMode) -> Result<(), String> {
+pub fn set_mode(_device: &str, _mode: &DisplayMode, _settle: bool) -> Result<(), String> {
     Err("Screen modes per game only exist on Windows.".into())
 }
 
-pub fn restore_mode(_device: &str) {}
+pub fn restore_modes(_devices: &[String]) {}
 
 pub fn reset_mode(_device: &str) {}
 

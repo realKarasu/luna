@@ -9,7 +9,9 @@ pub mod games;
 pub mod hooks;
 pub mod mag;
 pub mod optimizer;
+pub mod library;
 pub mod potato;
+pub mod sysmon;
 pub mod window;
 
 /// Opens a folder in the file manager.

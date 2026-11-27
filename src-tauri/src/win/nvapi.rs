@@ -24,6 +24,67 @@ const ID_SET_DVC_LEVEL_EX: u32 = 0x4A82_C2B1;
 const ID_GET_DVC_INFO: u32 = 0x4085_DE45;
 const ID_SET_DVC_LEVEL: u32 = 0x1724_09B4;
 
+const ID_ENUM_PHYSICAL_GPUS: u32 = 0xE5AC_921F;
+const ID_GPU_GET_THERMAL_SETTINGS: u32 = 0xE364_0A56;
+/// NVAPI_THERMAL_TARGET_ALL: every sensor of the card.
+const THERMAL_TARGET_ALL: u32 = 15;
+
+type NvEnumGpus = unsafe extern "C" fn(*mut [*mut c_void; 64], *mut u32) -> i32;
+type NvGetThermal = unsafe extern "C" fn(*mut c_void, u32, *mut ThermalSettings) -> i32;
+
+/// NV_GPU_THERMAL_SETTINGS version 2: per sensor the controller, its default minimum and
+/// maximum, the current temperature and the target (1 is the graphics chip).
+#[repr(C)]
+struct ThermalSettings {
+    version: u32,
+    count: u32,
+    sensors: [[i32; 5]; 3],
+}
+
+/// Reads the graphics card temperature. The DLL stays loaded for the life of Luna.
+pub struct NvThermo {
+    get: NvGetThermal,
+    gpu: *mut c_void,
+}
+
+impl NvThermo {
+    /// None on any PC without a working NVIDIA driver.
+    pub fn load() -> Option<NvThermo> {
+        unsafe {
+            let lib = LoadLibraryExW(w!("nvapi64.dll"), None, LOAD_LIBRARY_SEARCH_SYSTEM32).ok()?;
+            let qi: QueryInterface = std::mem::transmute(GetProcAddress(lib, s!("nvapi_QueryInterface"))?);
+            let get = |id: u32| {
+                let p = qi(id);
+                (!p.is_null()).then_some(p)
+            };
+            let init: NvInitialize = std::mem::transmute(get(ID_INITIALIZE)?);
+            if init() != 0 {
+                return None;
+            }
+            let enum_gpus: NvEnumGpus = std::mem::transmute(get(ID_ENUM_PHYSICAL_GPUS)?);
+            let thermal: NvGetThermal = std::mem::transmute(get(ID_GPU_GET_THERMAL_SETTINGS)?);
+            let mut gpus = [std::ptr::null_mut::<c_void>(); 64];
+            let mut n = 0u32;
+            if enum_gpus(&mut gpus, &mut n) != 0 || n == 0 || gpus[0].is_null() {
+                return None;
+            }
+            let t = NvThermo { get: thermal, gpu: gpus[0] };
+            t.read().map(|_| t)
+        }
+    }
+
+    /// Degrees Celsius, None when the driver does not say.
+    pub fn read(&self) -> Option<f32> {
+        let mut s = ThermalSettings { version: std::mem::size_of::<ThermalSettings>() as u32 | (2 << 16), count: 0, sensors: [[0; 5]; 3] };
+        if unsafe { (self.get)(self.gpu, THERMAL_TARGET_ALL, &mut s) } != 0 {
+            return None;
+        }
+        let n = (s.count as usize).min(3);
+        let chip = s.sensors[..n].iter().find(|x| x[4] == 1).or(s.sensors[..n].first())?;
+        (1..=125).contains(&chip[3]).then_some(chip[3] as f32)
+    }
+}
+
 #[repr(C)]
 #[derive(Default, Clone, Copy)]
 struct DvcInfo {

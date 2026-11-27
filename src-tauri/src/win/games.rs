@@ -10,6 +10,7 @@ use windows::Win32::Foundation::CloseHandle;
 use windows::Win32::Graphics::Gdi::{
     ChangeDisplaySettingsExW, EnumDisplaySettingsW, CDS_FULLSCREEN, CDS_TYPE, DEVMODEW, DISP_CHANGE_SUCCESSFUL,
     DM_DISPLAYFREQUENCY, DM_PELSHEIGHT, DM_PELSWIDTH, ENUM_CURRENT_SETTINGS, ENUM_DISPLAY_SETTINGS_MODE,
+    ENUM_REGISTRY_SETTINGS,
 };
 use windows::Win32::System::Diagnostics::ToolHelp::{
     CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
@@ -106,14 +107,25 @@ pub fn modes(device: &str) -> Vec<DisplayMode> {
     list
 }
 
-/// Switches a screen to a mode until `restore_mode`. Nothing happens when it already shows it.
-pub fn set_mode(device: &str, mode: &DisplayMode) -> Result<(), String> {
+/// Switches a screen to a mode until `restore_modes`. Nothing happens when it already shows it.
+/// `settle`: another screen just changed, so the driver gets two seconds to offer the mode.
+pub fn set_mode(device: &str, mode: &DisplayMode, settle: bool) -> Result<(), String> {
     let mut dm = read_mode(device, ENUM_CURRENT_SETTINGS).ok_or("Windows did not describe that screen.")?;
     if mode_of(&dm) == *mode {
         return Ok(());
     }
-    if !modes(device).contains(mode) {
-        return Err(format!("This screen cannot show {} x {} at {} Hz.", mode.width, mode.height, mode.hz));
+    let mut offered = modes(device).contains(mode);
+    let mut tries = 0;
+    while !offered && settle && tries < 8 {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        offered = modes(device).contains(mode);
+        tries += 1;
+    }
+    if !offered {
+        return Err(format!(
+            "The screen does not offer {} x {} at {} Hz right now. The profile left it as it was.",
+            mode.width, mode.height, mode.hz
+        ));
     }
     dm.dmPelsWidth = mode.width as u32;
     dm.dmPelsHeight = mode.height as u32;
@@ -141,11 +153,32 @@ fn put_back(device: &str) {
     }
 }
 
-/// Puts back the screen's own mode, if Luna changed it.
-pub fn restore_mode(device: &str) {
-    let was = CHANGED.lock().unwrap_or_else(|e| e.into_inner()).remove(device);
-    if was {
-        put_back(device);
+/// The screen shows the mode saved in Windows settings.
+fn is_back(device: &str) -> bool {
+    match (read_mode(device, ENUM_CURRENT_SETTINGS), read_mode(device, ENUM_REGISTRY_SETTINGS)) {
+        (Some(now), Some(saved)) => mode_of(&now) == mode_of(&saved),
+        _ => true,
+    }
+}
+
+/// Puts back the screens' own modes, in this order, if Luna changed them. A screen can
+/// only take its fast mode back once another one has slowed down, so it tries a few times.
+pub fn restore_modes(devices: &[String]) {
+    let mine: Vec<&String> = {
+        let mut changed = CHANGED.lock().unwrap_or_else(|e| e.into_inner());
+        devices.iter().filter(|d| changed.remove(*d)).collect()
+    };
+    for round in 0..4 {
+        let left: Vec<&&String> = mine.iter().filter(|d| round == 0 || !is_back(d)).collect();
+        if left.is_empty() {
+            break;
+        }
+        if round > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(400));
+        }
+        for d in left {
+            put_back(d);
+        }
     }
 }
 

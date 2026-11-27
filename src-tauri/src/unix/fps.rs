@@ -2,7 +2,7 @@
 
 use crate::games::FpsReading;
 
-pub fn set_enabled(_on: bool) {}
+pub fn set_enabled(_on: bool, _graph: bool) {}
 
 pub fn stop() {}
 

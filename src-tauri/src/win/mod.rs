@@ -8,10 +8,12 @@ pub mod fps;
 pub mod games;
 pub mod gpu;
 pub mod hooks;
+pub mod library;
 pub mod mag;
 pub mod nvapi;
 pub mod optimizer;
 pub mod potato;
+pub mod sysmon;
 pub mod vib;
 pub mod window;
 

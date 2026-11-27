@@ -13,6 +13,7 @@ mod engine;
 mod fit;
 mod games;
 mod input;
+mod library;
 mod screens;
 mod sweep;
 mod update;
@@ -198,6 +199,11 @@ mod app {
     #[tauri::command]
     async fn display_modes(monitor: String) -> Vec<DisplayMode> {
         plat::games::modes(&monitor)
+    }
+
+    #[tauri::command]
+    async fn installed_games() -> Vec<crate::library::InstalledGame> {
+        crate::library::installed()
     }
 
     #[tauri::command]
@@ -422,6 +428,7 @@ mod app {
                 borderless_apply,
                 borderless_restore,
                 display_modes,
+                installed_games,
                 games_status,
                 potato_set,
                 share_encode,
