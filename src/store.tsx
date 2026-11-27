@@ -41,7 +41,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     driverVibrance: false,
     magnifier: true,
     gammaStrength: {},
-    version: "0.7.0",
+    version: "0.8.0",
     dataDir: "",
     autostart: false,
     update: IDLE_UPDATE,
